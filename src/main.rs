@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use bindings::{
     Windows::Win32::Foundation::*,
     Windows::Win32::System::Diagnostics::Debug::SetLastError,
@@ -8,11 +10,17 @@ use bindings::{
     },
     Windows::Win32::UI::WindowsAndMessaging::*,
     Windows::Win32::Graphics::Gdi::ValidateRect,
+    Windows::Win32::System::Mmc::*,
 };
-use windows::Handle;
+use windows::{Handle};
 use utf16_lit::utf16_null;
 
+use std::ffi::OsStr;
+use std::os::windows::ffi::OsStrExt;
+use std::iter::once;
+
 const TRAY_ICON_ID: u32 = 5;
+const TRAY_MESSAGE: u32 = WM_APP + 1;
 
 /// Macro to invoke unsafe win32 API and check error code.
 /// Uses 1 WinAPI call on success path or 2 (+ `GetLastError`) if needs to check an error code.
@@ -74,6 +82,12 @@ macro_rules! execute_not_handle {
     };
 }
 
+#[cfg(windows)]
+fn win32_string( value : &str ) -> Vec<u16> {
+    OsStr::new( value ).encode_wide().chain( once( 0 ) ).collect()
+}
+
+#[cfg(windows)]
 fn main() -> windows::Result<()> {
     let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
 
@@ -90,18 +104,34 @@ fn main() -> windows::Result<()> {
     let icon: HICON = HICON(icon_handle.0);
 
     let menu_name = utf16_null!("some menu name");
-    let class_name = utf16_null!("notify_icon_class");
+    let mut class_name = utf16_null!("notify_icon_class");
     let cursor: HCURSOR = execute!(LoadCursorW(None, IDC_ARROW))?;
+
+    let mut about = utf16_null!("About");
+    let item_about: CONTEXTMENUITEM2 = CONTEXTMENUITEM2 {
+        strName: PWSTR(about.as_mut_ptr()),
+
+        ..Default::default()
+    };
+
+    // let menu: HMENU = execute!(CreateMenu())?;
+    // let mut menu_added: BOOL;
+    // menu_added = execute_not_handle!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(about.as_mut_ptr())))?;
+
+    // let menu_provider = unsafe {EmptyMenuList()};
+    // let add_result: windows::Result<()> = unsafe {menu_provider.AddItem(&item_about as *const CONTEXTMENUITEM2)};
 
     let win_class = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-        style: CS_HREDRAW | CS_VREDRAW,
+        style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(wndproc),
+        cbClsExtra: 0,
+        cbWndExtra: 0,
         hInstance: module_handle,
         hIcon: icon,
         hCursor: cursor,
-        lpszMenuName: PWSTR(menu_name.as_ptr() as _),
-        lpszClassName: PWSTR(class_name.as_ptr() as _),
+        // lpszMenuName: PWSTR(menu_name.as_ptr() as _),
+        lpszClassName: PWSTR(class_name.as_mut_ptr() as _),
         hIconSm: icon,
 
         ..Default::default()
@@ -110,13 +140,13 @@ fn main() -> windows::Result<()> {
     let atom: u16 = execute_not_handle!(RegisterClassExW(&win_class))?;
     assert!(atom != 0);
 
-    let _window_name = &utf16_null!("The window");
+    let mut window_name = utf16_null!("The window");
 
     let win_handle: HWND = execute!(
         CreateWindowExW(
             Default::default(),
-            PWSTR(class_name.as_ptr() as _),
-            PWSTR("This is a window title".encode_utf16().collect::<Vec<u16>>().as_mut_ptr()), //PWSTR(window_name.as_ptr() as _),  // TODO: fix title
+            PWSTR(class_name.as_mut_ptr()),
+            PWSTR(window_name.as_mut_ptr()),
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
@@ -138,6 +168,7 @@ fn main() -> windows::Result<()> {
         hWnd: win_handle,
         uID: TRAY_ICON_ID,
         uFlags: NIF_ICON | NIF_MESSAGE | NIF_TIP,
+        uCallbackMessage: TRAY_MESSAGE,
         hIcon: icon,
 
         ..Default::default()
@@ -169,6 +200,19 @@ fn main() -> windows::Result<()> {
 
 unsafe extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match message as u32 {
+        TRAY_MESSAGE => {
+            match (lparam.0 as u32) & 0x0000FFFF {
+                WM_LBUTTONDOWN => {
+                    ShowWindow(window, SW_RESTORE);
+                    LRESULT(0)
+                }
+                // WM_RBUTTONDOWN | WM_CONTEXTMENU => {
+                //     ShowContextMenu(hWnd);
+                //     LRESULT(0)
+                // }
+                _ => DefWindowProcW(window, message, wparam, lparam),
+            }
+        }
         WM_PAINT => {
             // println!("WM_PAINT");
             ValidateRect(window, std::ptr::null());
@@ -179,6 +223,6 @@ unsafe extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lp
             PostQuitMessage(0);
             LRESULT(0)
         }
-        _ => DefWindowProcA(window, message, wparam, lparam),
+        _ => DefWindowProcW(window, message, wparam, lparam),
     }
 }
