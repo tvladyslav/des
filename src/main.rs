@@ -1,59 +1,23 @@
 #![windows_subsystem = "windows"]
 
-use bindings::{
-    Windows::Win32::Foundation::*,
-    Windows::Win32::System::Diagnostics::Debug::SetLastError,
-    Windows::Win32::System::LibraryLoader::GetModuleHandleW,
-    Windows::Win32::UI::Controls::{LR_DEFAULTSIZE, LR_LOADFROMFILE, LR_SHARED},
-    Windows::Win32::UI::Shell::{
+use windows::{
+    core::*,
+    Win32::Foundation::*,
+    Win32::System::LibraryLoader::GetModuleHandleW,
+    Win32::UI::Shell::{
         Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW,
     },
-    Windows::Win32::UI::WindowsAndMessaging::*,
-    Windows::Win32::Graphics::Gdi::ValidateRect,
-    Windows::Win32::System::Mmc::*,
+    Win32::UI::WindowsAndMessaging::*,
+    Win32::Graphics::Gdi::ValidateRect,
+    Win32::System::Mmc::CONTEXTMENUITEM2,
 };
-use windows::{Handle};
 use utf16_lit::utf16_null;
-
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
-use std::iter::once;
 
 const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
 
 /// Macro to invoke unsafe win32 API and check error code.
-/// Uses 1 WinAPI call on success path or 2 (+ `GetLastError`) if needs to check an error code.
-///
-/// # Arguments
-///
-/// * `func` - function with all arguments; return value must implement `windows.Handle` trait
-///
-/// # Return value
-///
-/// `windows::Result<H> where H: windows.Handle` type
-///
-/// # Examples
-///
-/// ```
-/// let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
-/// ```
-macro_rules! execute {
-    ($func:expr) => {
-        {
-            let result = unsafe { $func };
-            if result.is_invalid() {
-                let err: windows::Error = windows::Error::from_win32();
-                Err(err)
-            } else {
-                Ok(result)
-            }
-        }
-    };
-}
-
-/// Macro to invoke unsafe win32 API and check error code.
-/// Uses 3 Win API calls (+ `SetLastError` comparing to `execute!`) -> probably slower.
+/// Uses 3 Win API calls.
 ///
 /// # Arguments
 ///
@@ -66,14 +30,14 @@ macro_rules! execute {
 /// # Examples
 ///
 /// ```
-/// let atom: u16 = execute_not_handle!(RegisterClassExW(&win_class))?;
+/// let atom: u16 = execute!(RegisterClassExW(&win_class))?;
 /// ```
-macro_rules! execute_not_handle {
+macro_rules! execute {
     ($func:expr) => {
         {
             unsafe {SetLastError(0)};
             let result = unsafe { $func };
-            let err: windows::Error = windows::Error::from_win32();
+            let err: windows::core::Error = windows::core::Error::from_win32();
             match err.info() {
                 Option::Some(_) => Err(err),
                 Option::None    => Ok(result),
@@ -83,12 +47,7 @@ macro_rules! execute_not_handle {
 }
 
 #[cfg(windows)]
-fn win32_string( value : &str ) -> Vec<u16> {
-    OsStr::new( value ).encode_wide().chain( once( 0 ) ).collect()
-}
-
-#[cfg(windows)]
-fn main() -> windows::Result<()> {
+fn main() -> windows::core::Result<()> {
     let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
 
     let icon_handle = execute!(
@@ -101,7 +60,7 @@ fn main() -> windows::Result<()> {
             LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED,
         )
     )?;
-    let icon: HICON = HICON(icon_handle.0);
+    let icon: HICON = icon_handle.0;
 
     let menu_name = utf16_null!("some menu name");
     let mut class_name = utf16_null!("notify_icon_class");
@@ -137,7 +96,7 @@ fn main() -> windows::Result<()> {
         ..Default::default()
     };
 
-    let atom: u16 = execute_not_handle!(RegisterClassExW(&win_class))?;
+    let atom: u16 = execute!(RegisterClassExW(&win_class))?;
     assert!(atom != 0);
 
     let mut window_name = utf16_null!("The window");
@@ -176,7 +135,7 @@ fn main() -> windows::Result<()> {
 
     tray_data.szTip.clone_from_slice(sz_tip.as_slice());
 
-    let is_added: BOOL = execute_not_handle!(Shell_NotifyIconW(NIM_ADD, &tray_data))?;
+    let is_added: BOOL = execute!(Shell_NotifyIconW(NIM_ADD, &tray_data))?;
     assert!(is_added.as_bool());
 
     // unsafe {
@@ -192,7 +151,7 @@ fn main() -> windows::Result<()> {
         }
     }
 
-    let is_deleted: BOOL = execute_not_handle!(Shell_NotifyIconW(NIM_DELETE, &tray_data))?;
+    let is_deleted: BOOL = execute!(Shell_NotifyIconW(NIM_DELETE, &tray_data))?;
     assert!(is_deleted.as_bool());
 
     Ok(())
@@ -201,10 +160,10 @@ fn main() -> windows::Result<()> {
 unsafe extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match message as u32 {
         TRAY_MESSAGE => {
-            match (lparam.0 as u32) & 0x0000FFFF {
+            match (lparam as u32) & 0x0000FFFF {
                 WM_LBUTTONDOWN => {
                     ShowWindow(window, SW_RESTORE);
-                    LRESULT(0)
+                    0
                 }
                 // WM_RBUTTONDOWN | WM_CONTEXTMENU => {
                 //     ShowContextMenu(hWnd);
@@ -216,12 +175,12 @@ unsafe extern "system" fn wndproc(window: HWND, message: u32, wparam: WPARAM, lp
         WM_PAINT => {
             // println!("WM_PAINT");
             ValidateRect(window, std::ptr::null());
-            LRESULT(0)
+            0
         }
         WM_DESTROY => {
             // println!("WM_DESTROY");
             PostQuitMessage(0);
-            LRESULT(0)
+            0
         }
         _ => DefWindowProcW(window, message, wparam, lparam),
     }
