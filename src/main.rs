@@ -2,7 +2,7 @@
 
 use utf16_lit::utf16_null;
 use windows::{
-    core::*,
+    // core::*,
     Win32::Foundation::*,
     Win32::Graphics::Gdi::ValidateRect,
     Win32::System::LibraryLoader::GetModuleHandleW,
@@ -12,36 +12,30 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
+mod state;
+use state::MenuState;
+
+#[macro_use]
+mod macros;
+
 const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
 
-/// Macro to invoke unsafe win32 API and check error code.
-/// Uses 3 Win API calls.
-///
-/// # Arguments
-///
-/// * `func` - function with all arguments; there is no restriction on return type
-///
-/// # Return value
-///
-/// `windows::Result<T> where T` is an arbitrary type
-///
-/// # Examples
-///
-/// ```
-/// let atom: u16 = execute!(RegisterClassExW(&win_class))?;
-/// ```
-macro_rules! execute {
-    ($func:expr) => {{
-        unsafe { SetLastError(0) };
-        let result = unsafe { $func };
-        let err: windows::core::Error = windows::core::Error::from_win32();
-        match err.info() {
-            Option::Some(_) => Err(err),
-            Option::None => Ok(result),
-        }
-    }};
-}
+const MENU_GUEST: u32 = 1;
+const MENU_DISASSEMBLER: u32 = 2;
+const MENU_DEBUGGER: u32 = 3;
+const MENU_ANTIVIRUS: u32 = 4;
+const MENU_FIREWALL: u32 = 5;
+const MENU_ABOUT: u32 = 10;
+const MENU_EXIT: u32 = 77;
+
+static mut MENU_STATE: MenuState = MenuState {
+    guest: false,
+    disassembler: false,
+    debugger: true,
+    antivirus: true,
+    firewall: true
+};
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
@@ -60,17 +54,6 @@ fn main() -> windows::core::Result<()> {
     let menu_name = utf16_null!("some menu name");
     let mut class_name = utf16_null!("notify_icon_class");
     let cursor: HCURSOR = execute!(LoadCursorW(None, IDC_ARROW))?;
-
-    // let mut vm_guest = utf16_null!("VM guest process");
-    // let mut disasm = utf16_null!("Disassembler");
-    // let mut about = utf16_null!("About");
-
-    // let menu: HMENU = execute!(CreatePopupMenu())?;
-    // let mut menu_added: bool = true;
-    // menu_added &= execute!(AppendMenuW(menu, MF_UNCHECKED | MF_STRING, 0, PWSTR(vm_guest.as_mut_ptr())))?.as_bool();
-    // menu_added &= execute!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(disasm.as_mut_ptr())))?.as_bool();
-    // menu_added &= execute!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(about.as_mut_ptr())))?.as_bool();
-    // assert!(menu_added == true);
 
     let win_class = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
@@ -155,22 +138,60 @@ unsafe extern "system" fn wndproc(
 ) -> LRESULT {
     match message as u32 {
         TRAY_MESSAGE => {
-            match (lparam as u32) & 0x0000FFFF {
+            match LOWORD!(lparam) {
                 WM_LBUTTONUP => {
                     ShowWindow(window, SW_RESTORE);
                     0
                 }
                 WM_RBUTTONUP => {
-                    // println!("Params are {0} {1}", wparam, lparam);
                     let mut point: POINT = Default::default();
                     GetCursorPos(&mut point);
-                    HandlePopupMenu(window, point);
+                    handle_popup_menu(window, point);
 
                     0
                 }
                 _ => DefWindowProcW(window, message, wparam, lparam),
             }
         }
+        WM_COMMAND => match LOWORD!(wparam) {
+            MENU_GUEST => {
+                //MessageBoxA(window, "Guest", "Caption", MB_OK);
+                MENU_STATE.guest = !MENU_STATE.guest;
+                0
+            }
+            MENU_DISASSEMBLER => {
+                //MessageBoxA(window, "Disasm", "Caption", MB_OK);
+                MENU_STATE.disassembler = !MENU_STATE.disassembler;
+                0
+            }
+            MENU_DEBUGGER => {
+                //MessageBoxA(window, "Debugger", "Caption", MB_OK);
+                MENU_STATE.debugger = !MENU_STATE.debugger;
+                0
+            }
+            MENU_ANTIVIRUS => {
+                //MessageBoxA(window, "Antivirus", "Caption", MB_OK);
+                MENU_STATE.antivirus = !MENU_STATE.antivirus;
+                0
+            }
+            MENU_FIREWALL => {
+                //MessageBoxA(window, "Firewall", "Caption", MB_OK);
+                MENU_STATE.firewall = !MENU_STATE.firewall;
+                0
+            }
+            MENU_ABOUT => {
+                MessageBoxA(window, "About", "Caption", MB_OK);
+                0
+            }
+            MENU_EXIT => {
+                PostQuitMessage(0);
+                0
+            }
+            _ => {
+                MessageBoxA(window, wparam.to_string(), "Unknown command", MB_OK);
+                0
+            }
+        },
         WM_PAINT => {
             // println!("WM_PAINT");
             ValidateRect(window, std::ptr::null());
@@ -185,48 +206,68 @@ unsafe extern "system" fn wndproc(
     }
 }
 
-unsafe extern "system" fn HandlePopupMenu(window: HWND, point: POINT) {
+
+
+unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT) {
     let mut vm_guest = utf16_null!("VM guest process");
     let mut disasm = utf16_null!("Disassembler");
+    let mut debugger = utf16_null!("Debugger");
+    let mut antivirus = utf16_null!("Antivirus");
+    let mut firewall = utf16_null!("Firewall");
     let mut about = utf16_null!("About");
+    let mut exit = utf16_null!("Exit");
     //let mut lp: Vec<u16> = lparam.to_string().encode_utf16().chain(Some(0)).collect();
     //let mut wp: Vec<u16> = wparam.to_string().encode_utf16().chain(Some(0)).collect();
 
-    let menu: HMENU = execute!(CreatePopupMenu()).unwrap();
-    let mut menu_added: bool = true;
-    menu_added &= execute!(AppendMenuW(
+    let menu: HMENU = CreatePopupMenu();
+    AppendMenuW(
         menu,
-        MF_UNCHECKED | MF_STRING,
-        0,
-        PWSTR(vm_guest.as_mut_ptr())
-    ))
-    .unwrap()
-    .as_bool();
-    menu_added &= execute!(AppendMenuW(
+        if MENU_STATE.guest {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MENU_GUEST as usize,
+        PWSTR(vm_guest.as_mut_ptr()),
+    );
+    AppendMenuW(
         menu,
-        MF_CHECKED | MF_STRING,
-        0,
-        PWSTR(disasm.as_mut_ptr())
-    ))
-    .unwrap()
-    .as_bool();
-    menu_added &= execute!(AppendMenuW(menu, MF_SEPARATOR, 0, None))
-        .unwrap()
-        .as_bool();
-    menu_added &= execute!(AppendMenuW(
+        if MENU_STATE.disassembler {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MENU_DISASSEMBLER as usize,
+        PWSTR(disasm.as_mut_ptr()),
+    );
+    AppendMenuW(
         menu,
-        MF_CHECKED | MF_STRING,
-        0,
-        PWSTR(about.as_mut_ptr())
-    ))
-    .unwrap()
-    .as_bool();
+        if MENU_STATE.debugger {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MENU_DEBUGGER as usize,
+        PWSTR(debugger.as_mut_ptr()),
+    );
+    AppendMenuW(
+        menu,
+        if MENU_STATE.antivirus {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MENU_ANTIVIRUS as usize,
+        PWSTR(antivirus.as_mut_ptr()),
+    );
+    AppendMenuW(
+        menu,
+        if MENU_STATE.firewall {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MENU_FIREWALL as usize,
+        PWSTR(firewall.as_mut_ptr()),
+    );
+    AppendMenuW(menu, MF_SEPARATOR, 0, None);
+    AppendMenuW(
+        menu,
+        MF_STRING,
+        MENU_ABOUT as usize,
+        PWSTR(about.as_mut_ptr()),
+    );
+    AppendMenuW(
+        menu,
+        MF_STRING,
+        MENU_EXIT as usize,
+        PWSTR(exit.as_mut_ptr()),
+    );
     //menu_added &= execute!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(wp.as_mut_ptr()))).unwrap().as_bool();
     //menu_added &= execute!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(lp.as_mut_ptr()))).unwrap().as_bool();
-    assert!(menu_added == true);
 
     SetForegroundWindow(window);
-    let selection = TrackPopupMenu(
+    TrackPopupMenu(
         menu,
         TPM_BOTTOMALIGN | TPM_RIGHTALIGN,
         point.x,
