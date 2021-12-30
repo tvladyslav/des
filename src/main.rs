@@ -29,13 +29,15 @@ const MENU_FIREWALL: u32 = 5;
 const MENU_ABOUT: u32 = 10;
 const MENU_EXIT: u32 = 77;
 
-static mut MENU_STATE: MenuState = MenuState {
+static mut DEFAULT_MENU_STATE: MenuState = MenuState {
     guest: false,
     disassembler: false,
     debugger: true,
     antivirus: true,
     firewall: true
 };
+
+static mut MENU: HMENU = 0;
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
@@ -51,7 +53,7 @@ fn main() -> windows::core::Result<()> {
     ))?;
     let icon: HICON = icon_handle.0;
 
-    let menu_name = utf16_null!("some menu name");
+    //let menu_name = utf16_null!("some menu name");
     let mut class_name = utf16_null!("notify_icon_class");
     let cursor: HCURSOR = execute!(LoadCursorW(None, IDC_ARROW))?;
 
@@ -64,7 +66,7 @@ fn main() -> windows::core::Result<()> {
         hInstance: module_handle,
         hIcon: icon,
         hCursor: cursor,
-        lpszMenuName: PWSTR(menu_name.as_ptr() as _),
+    //    lpszMenuName: PWSTR(menu_name.as_ptr() as _),
         lpszClassName: PWSTR(class_name.as_mut_ptr() as _),
         hIconSm: icon,
 
@@ -94,6 +96,8 @@ fn main() -> windows::core::Result<()> {
     let mut sz_tip: Vec<u16> = Vec::with_capacity(128);
     sz_tip.extend_from_slice(&utf16_null!("Debug environment simulator"));
     sz_tip.resize(128, 0);
+
+    unsafe {create_menu(&mut MENU);}
 
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
@@ -130,6 +134,16 @@ fn main() -> windows::core::Result<()> {
     Ok(())
 }
 
+unsafe fn flip_menu_state(context_menu: HMENU, menu_item: u32) {
+    let state: u32 = GetMenuState(context_menu, menu_item, MF_BYCOMMAND); 
+
+    if state == MF_CHECKED {
+        CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);  
+    } else {
+        CheckMenuItem(context_menu, menu_item, MF_CHECKED);  
+    }
+}
+
 unsafe extern "system" fn wndproc(
     window: HWND,
     message: u32,
@@ -146,7 +160,7 @@ unsafe extern "system" fn wndproc(
                 WM_RBUTTONUP => {
                     let mut point: POINT = Default::default();
                     GetCursorPos(&mut point);
-                    handle_popup_menu(window, point);
+                    handle_popup_menu(window, point, MENU);
 
                     0
                 }
@@ -156,27 +170,27 @@ unsafe extern "system" fn wndproc(
         WM_COMMAND => match LOWORD!(wparam) {
             MENU_GUEST => {
                 //MessageBoxA(window, "Guest", "Caption", MB_OK);
-                MENU_STATE.guest = !MENU_STATE.guest;
+                flip_menu_state(MENU, MENU_GUEST);
                 0
             }
             MENU_DISASSEMBLER => {
                 //MessageBoxA(window, "Disasm", "Caption", MB_OK);
-                MENU_STATE.disassembler = !MENU_STATE.disassembler;
+                flip_menu_state(MENU, MENU_DISASSEMBLER);
                 0
             }
             MENU_DEBUGGER => {
                 //MessageBoxA(window, "Debugger", "Caption", MB_OK);
-                MENU_STATE.debugger = !MENU_STATE.debugger;
+                flip_menu_state(MENU, MENU_DEBUGGER);
                 0
             }
             MENU_ANTIVIRUS => {
                 //MessageBoxA(window, "Antivirus", "Caption", MB_OK);
-                MENU_STATE.antivirus = !MENU_STATE.antivirus;
+                flip_menu_state(MENU, MENU_ANTIVIRUS);
                 0
             }
             MENU_FIREWALL => {
                 //MessageBoxA(window, "Firewall", "Caption", MB_OK);
-                MENU_STATE.firewall = !MENU_STATE.firewall;
+                flip_menu_state(MENU, MENU_FIREWALL);
                 0
             }
             MENU_ABOUT => {
@@ -184,7 +198,7 @@ unsafe extern "system" fn wndproc(
                 0
             }
             MENU_EXIT => {
-                PostQuitMessage(0);
+                SendMessageW(window, WM_CLOSE, 0, 0);
                 0
             }
             _ => {
@@ -197,18 +211,24 @@ unsafe extern "system" fn wndproc(
             ValidateRect(window, std::ptr::null());
             0
         }
+        WM_CREATE => {
+            0
+        }
         WM_DESTROY => {
             // println!("WM_DESTROY");
-            PostQuitMessage(0);
-            0
+            exit_routine()
         }
         _ => DefWindowProcW(window, message, wparam, lparam),
     }
 }
 
+unsafe fn exit_routine() -> LRESULT {
+    DestroyMenu(MENU);
+    PostQuitMessage(0);
+    0
+}
 
-
-unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT) {
+unsafe fn create_menu(context_menu: &mut HMENU) {
     let mut vm_guest = utf16_null!("VM guest process");
     let mut disasm = utf16_null!("Disassembler");
     let mut debugger = utf16_null!("Debugger");
@@ -216,37 +236,35 @@ unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT) {
     let mut firewall = utf16_null!("Firewall");
     let mut about = utf16_null!("About");
     let mut exit = utf16_null!("Exit");
-    //let mut lp: Vec<u16> = lparam.to_string().encode_utf16().chain(Some(0)).collect();
-    //let mut wp: Vec<u16> = wparam.to_string().encode_utf16().chain(Some(0)).collect();
 
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(
         menu,
-        if MENU_STATE.guest {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        if DEFAULT_MENU_STATE.guest {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
         MENU_GUEST as usize,
         PWSTR(vm_guest.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if MENU_STATE.disassembler {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        if DEFAULT_MENU_STATE.disassembler {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
         MENU_DISASSEMBLER as usize,
         PWSTR(disasm.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if MENU_STATE.debugger {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        if DEFAULT_MENU_STATE.debugger {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
         MENU_DEBUGGER as usize,
         PWSTR(debugger.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if MENU_STATE.antivirus {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        if DEFAULT_MENU_STATE.antivirus {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
         MENU_ANTIVIRUS as usize,
         PWSTR(antivirus.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if MENU_STATE.firewall {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        if DEFAULT_MENU_STATE.firewall {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
         MENU_FIREWALL as usize,
         PWSTR(firewall.as_mut_ptr()),
     );
@@ -263,9 +281,11 @@ unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT) {
         MENU_EXIT as usize,
         PWSTR(exit.as_mut_ptr()),
     );
-    //menu_added &= execute!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(wp.as_mut_ptr()))).unwrap().as_bool();
-    //menu_added &= execute!(AppendMenuW(menu, MF_CHECKED | MF_STRING, 0, PWSTR(lp.as_mut_ptr()))).unwrap().as_bool();
 
+    *context_menu = menu;
+}
+
+unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT, menu: HMENU) {
     SetForegroundWindow(window);
     TrackPopupMenu(
         menu,
@@ -277,6 +297,4 @@ unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT) {
         0 as *const RECT,
     );
     PostMessageW(window, WM_NULL, 0, 0);
-    //MessageBoxW(window, selection.to_string(), "None", MB_OK);
-    DestroyMenu(menu);
 }
