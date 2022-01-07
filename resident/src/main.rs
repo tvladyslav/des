@@ -12,6 +12,8 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
+// use std::process::Command;
+
 mod state;
 use state::MenuState;
 
@@ -135,12 +137,12 @@ fn main() -> windows::core::Result<()> {
 }
 
 unsafe fn flip_menu_state(context_menu: HMENU, menu_item: u32) {
-    let state: u32 = GetMenuState(context_menu, menu_item, MF_BYCOMMAND); 
+    let state: u32 = GetMenuState(context_menu, menu_item, MF_BYCOMMAND);
 
     if state == MF_CHECKED {
-        CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);  
+        CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);
     } else {
-        CheckMenuItem(context_menu, menu_item, MF_CHECKED);  
+        CheckMenuItem(context_menu, menu_item, MF_CHECKED);
     }
 }
 
