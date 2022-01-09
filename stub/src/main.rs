@@ -13,9 +13,7 @@ mod macros;
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() == 1 {
+    if std::env::args().count() == 1 {
         execute!(MessageBoxW(
             0,
             PWSTR(utf16_null!("Don't run this application manually.").as_mut_ptr()),

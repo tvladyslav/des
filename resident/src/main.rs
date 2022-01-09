@@ -38,11 +38,8 @@ const MENU_PAUSE: u32 = 78;
 const MENU_RESUME: u32 = 79;
 
 // Selected by default
-const SELECTED_VALUES: [u32; 2] = [
-    MENU_GUEST_VIRTUALBOX,
-    MENU_DISASSEMBLER_IDA,
-];
-    
+const SELECTED_VALUES: [u32; 2] = [MENU_GUEST_VIRTUALBOX, MENU_DISASSEMBLER_IDA];
+
 // Main menu
 static mut MENU: HMENU = 0;
 
@@ -77,7 +74,7 @@ fn main() -> windows::core::Result<()> {
         hInstance: module_handle,
         hIcon: icon,
         hCursor: cursor,
-    //    lpszMenuName: PWSTR(menu_name.as_ptr() as _),
+        //    lpszMenuName: PWSTR(menu_name.as_ptr() as _),
         lpszClassName: PWSTR(class_name.as_mut_ptr() as _),
         hIconSm: icon,
 
@@ -108,7 +105,9 @@ fn main() -> windows::core::Result<()> {
     sz_tip.extend_from_slice(&utf16_null!("Debug environment simulator"));
     sz_tip.resize(128, 0);
 
-    unsafe {create_menu(&mut MENU);}
+    unsafe {
+        create_menu(&mut MENU);
+    }
 
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
@@ -162,50 +161,42 @@ unsafe extern "system" fn wndproc(
     lparam: LPARAM,
 ) -> LRESULT {
     match message as u32 {
-        TRAY_MESSAGE => {
-            match LOWORD!(lparam) {
-                WM_LBUTTONUP => {
-                    ShowWindow(window, SW_RESTORE);
-                    0
-                }
-                WM_RBUTTONUP => {
-                    let mut point: POINT = Default::default();
-                    GetCursorPos(&mut point);
-                    handle_popup_menu(window, point, MENU);
-
-                    0
-                }
-                _ => DefWindowProcW(window, message, wparam, lparam),
+        TRAY_MESSAGE => match LOWORD!(lparam) {
+            WM_LBUTTONUP => {
+                ShowWindow(window, SW_RESTORE);
+                0
             }
-        }
+            WM_RBUTTONUP => {
+                let mut point: POINT = Default::default();
+                GetCursorPos(&mut point);
+                handle_popup_menu(window, point, MENU);
+
+                0
+            }
+            _ => DefWindowProcW(window, message, wparam, lparam),
+        },
         WM_COMMAND => match LOWORD!(wparam) {
             MENU_PAUSE | MENU_RESUME => {
                 // TODO: Pause all or resume all
                 0
             }
-            MENU_GUEST => {
-                //MessageBoxA(window, "Guest", "Caption", MB_OK);
-                flip_menu_state(MENU, MENU_GUEST);
+            MENU_GUEST | MENU_DISASSEMBLER | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL => {
+                // This should never happen. Assert?
+                MessageBoxW(
+                    0,
+                    PWSTR(utf16_null!("Selected non-active menu items.").as_mut_ptr()),
+                    PWSTR(utf16_null!("Error").as_mut_ptr()),
+                    MB_OK | MB_ICONERROR,
+                );
                 0
             }
-            MENU_DISASSEMBLER => {
-                //MessageBoxA(window, "Disasm", "Caption", MB_OK);
-                flip_menu_state(MENU, MENU_DISASSEMBLER);
-                0
-            }
-            MENU_DEBUGGER => {
-                //MessageBoxA(window, "Debugger", "Caption", MB_OK);
-                flip_menu_state(MENU, MENU_DEBUGGER);
-                0
-            }
-            MENU_ANTIVIRUS => {
-                //MessageBoxA(window, "Antivirus", "Caption", MB_OK);
-                flip_menu_state(MENU, MENU_ANTIVIRUS);
-                0
-            }
-            MENU_FIREWALL => {
-                //MessageBoxA(window, "Firewall", "Caption", MB_OK);
-                flip_menu_state(MENU, MENU_FIREWALL);
+            MENU_DISASSEMBLER_IDA
+            | MENU_DISASSEMBLER_X64DBG
+            | MENU_GUEST_VIRTUALBOX
+            | MENU_GUEST_VMWARE => {
+                // TODO: Is there a nice way to bind this variable?
+                let m = LOWORD!(wparam);
+                flip_menu_state(MENU, m);
                 0
             }
             MENU_ABOUT => {
@@ -226,9 +217,7 @@ unsafe extern "system" fn wndproc(
             ValidateRect(window, std::ptr::null());
             0
         }
-        WM_CREATE => {
-            0
-        }
+        WM_CREATE => 0,
         WM_DESTROY => {
             // println!("WM_DESTROY");
             exit_routine()
@@ -243,27 +232,53 @@ unsafe fn exit_routine() -> LRESULT {
     0
 }
 
-unsafe fn append_menu(menu: HMENU, entries: &Vec<MenuEntry>) {
+fn append_menu(menu: HMENU, entries: &[MenuEntry]) {
     for e in entries {
-        let bird = if SELECTED_VALUES.contains(&e.id) {MF_CHECKED} else {MF_UNCHECKED};
-        AppendMenuW(
-            menu,
-            bird | MF_STRING,
-            e.id as usize,
-            PWSTR(to_utf16(&e.entry_text).as_mut_ptr()),
-        );
+        let bird = if SELECTED_VALUES.contains(&e.id) {
+            MF_CHECKED
+        } else {
+            MF_UNCHECKED
+        };
+        unsafe {
+            AppendMenuW(
+                menu,
+                bird | MF_STRING,
+                e.id as usize,
+                PWSTR(to_utf16(e.entry_text).as_mut_ptr()),
+            )
+        };
     }
 }
 
 unsafe fn create_menu(context_menu: &mut HMENU) {
     let guest_entries: Vec<MenuEntry> = vec![
-        MenuEntry {id: MENU_GUEST_VIRTUALBOX, entry_text: "VirtualBox", process_name: "TODO", process_child: None},
-        MenuEntry {id: MENU_GUEST_VMWARE, entry_text: "VMware", process_name: "TODO", process_child: None},
+        MenuEntry {
+            id: MENU_GUEST_VIRTUALBOX,
+            entry_text: "VirtualBox",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_GUEST_VMWARE,
+            entry_text: "VMware",
+            process_name: "TODO",
+            process_child: None,
+        },
     ];
 
     let disassembler_entries: Vec<MenuEntry> = vec![
-        MenuEntry {id: MENU_DISASSEMBLER_IDA, entry_text: "IDA Pro", process_name: "TODO", process_child: None},
-        MenuEntry {id: MENU_DISASSEMBLER_X64DBG, entry_text: "x64dbg", process_name: "x64dbg.exe", process_child: None},
+        MenuEntry {
+            id: MENU_DISASSEMBLER_IDA,
+            entry_text: "IDA Pro",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_DISASSEMBLER_X64DBG,
+            entry_text: "x64dbg",
+            process_name: "x64dbg.exe",
+            process_child: None,
+        },
     ];
 
     let mut pause = utf16_null!("Pause");
@@ -281,7 +296,7 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
 
     let disassembler_submenu: HMENU = CreatePopupMenu();
     append_menu(disassembler_submenu, &disassembler_entries);
-    
+
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(
         menu,
@@ -349,7 +364,7 @@ unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT, menu: HM
         point.y,
         0,
         window,
-        0 as *const RECT,
+        std::ptr::null::<RECT>(),
     );
     PostMessageW(window, WM_NULL, 0, 0);
 }
