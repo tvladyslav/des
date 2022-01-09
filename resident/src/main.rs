@@ -15,7 +15,7 @@ use windows::{
 // use std::process::Command;
 
 mod state;
-use state::MenuState;
+use state::*;
 
 #[macro_use]
 mod macros;
@@ -24,22 +24,31 @@ const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
 
 const MENU_GUEST: u32 = 1;
+const MENU_GUEST_VIRTUALBOX: u32 = 11;
+const MENU_GUEST_VMWARE: u32 = 12;
 const MENU_DISASSEMBLER: u32 = 2;
+const MENU_DISASSEMBLER_IDA: u32 = 21;
+const MENU_DISASSEMBLER_X64DBG: u32 = 22;
 const MENU_DEBUGGER: u32 = 3;
 const MENU_ANTIVIRUS: u32 = 4;
 const MENU_FIREWALL: u32 = 5;
 const MENU_ABOUT: u32 = 10;
 const MENU_EXIT: u32 = 77;
+const MENU_PAUSE: u32 = 78;
+const MENU_RESUME: u32 = 79;
 
-static mut DEFAULT_MENU_STATE: MenuState = MenuState {
-    guest: false,
-    disassembler: false,
-    debugger: true,
-    antivirus: true,
-    firewall: true
-};
-
+// Selected by default
+const SELECTED_VALUES: [u32; 2] = [
+    MENU_GUEST_VIRTUALBOX,
+    MENU_DISASSEMBLER_IDA,
+];
+    
+// Main menu
 static mut MENU: HMENU = 0;
+
+fn to_utf16(text: &str) -> Vec<u16> {
+    return text.encode_utf16().chain(std::iter::once(0)).collect();
+}
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
@@ -170,6 +179,10 @@ unsafe extern "system" fn wndproc(
             }
         }
         WM_COMMAND => match LOWORD!(wparam) {
+            MENU_PAUSE | MENU_RESUME => {
+                // TODO: Pause all or resume all
+                0
+            }
             MENU_GUEST => {
                 //MessageBoxA(window, "Guest", "Caption", MB_OK);
                 flip_menu_state(MENU, MENU_GUEST);
@@ -230,7 +243,31 @@ unsafe fn exit_routine() -> LRESULT {
     0
 }
 
+unsafe fn append_menu(menu: HMENU, entries: &Vec<MenuEntry>) {
+    for e in entries {
+        let bird = if SELECTED_VALUES.contains(&e.id) {MF_CHECKED} else {MF_UNCHECKED};
+        AppendMenuW(
+            menu,
+            bird | MF_STRING,
+            e.id as usize,
+            PWSTR(to_utf16(&e.entry_text).as_mut_ptr()),
+        );
+    }
+}
+
 unsafe fn create_menu(context_menu: &mut HMENU) {
+    let guest_entries: Vec<MenuEntry> = vec![
+        MenuEntry {id: MENU_GUEST_VIRTUALBOX, entry_text: "VirtualBox", process_name: "TODO", process_child: None},
+        MenuEntry {id: MENU_GUEST_VMWARE, entry_text: "VMware", process_name: "TODO", process_child: None},
+    ];
+
+    let disassembler_entries: Vec<MenuEntry> = vec![
+        MenuEntry {id: MENU_DISASSEMBLER_IDA, entry_text: "IDA Pro", process_name: "TODO", process_child: None},
+        MenuEntry {id: MENU_DISASSEMBLER_X64DBG, entry_text: "x64dbg", process_name: "x64dbg.exe", process_child: None},
+    ];
+
+    let mut pause = utf16_null!("Pause");
+    let mut resume = utf16_null!("Resume");
     let mut vm_guest = utf16_null!("VM guest process");
     let mut disasm = utf16_null!("Disassembler");
     let mut debugger = utf16_null!("Debugger");
@@ -239,34 +276,50 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     let mut about = utf16_null!("About");
     let mut exit = utf16_null!("Exit");
 
+    let guest_submenu: HMENU = CreatePopupMenu();
+    append_menu(guest_submenu, &guest_entries);
+
+    let disassembler_submenu: HMENU = CreatePopupMenu();
+    append_menu(disassembler_submenu, &disassembler_entries);
+    
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(
         menu,
-        if DEFAULT_MENU_STATE.guest {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
-        MENU_GUEST as usize,
+        MF_STRING,
+        MENU_PAUSE as usize,
+        PWSTR(pause.as_mut_ptr()),
+    );
+    AppendMenuW(menu, MF_SEPARATOR, 0, None);
+    AppendMenuW(
+        menu,
+        MF_STRING | MF_POPUP,
+        guest_submenu as usize,
         PWSTR(vm_guest.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if DEFAULT_MENU_STATE.disassembler {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
-        MENU_DISASSEMBLER as usize,
+        MF_STRING | MF_POPUP,
+        disassembler_submenu as usize,
         PWSTR(disasm.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if DEFAULT_MENU_STATE.debugger {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        // if DEFAULT_MENU_STATE.debugger {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MF_UNCHECKED | MF_STRING,
         MENU_DEBUGGER as usize,
         PWSTR(debugger.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if DEFAULT_MENU_STATE.antivirus {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        // if DEFAULT_MENU_STATE.antivirus {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MF_UNCHECKED | MF_STRING,
         MENU_ANTIVIRUS as usize,
         PWSTR(antivirus.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        if DEFAULT_MENU_STATE.firewall {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        // if DEFAULT_MENU_STATE.firewall {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
+        MF_UNCHECKED | MF_STRING,
         MENU_FIREWALL as usize,
         PWSTR(firewall.as_mut_ptr()),
     );

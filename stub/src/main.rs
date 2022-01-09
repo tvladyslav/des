@@ -13,6 +13,18 @@ mod macros;
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() == 1 {
+        execute!(MessageBoxW(
+            0,
+            PWSTR(utf16_null!("Don't run this application manually.").as_mut_ptr()),
+            PWSTR(utf16_null!("Error").as_mut_ptr()),
+            MB_OK | MB_ICONERROR
+        ))?;
+        return Ok(());
+    }
+
     let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
 
     let mut class_name = utf16_null!("stub_class");
