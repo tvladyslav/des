@@ -26,19 +26,42 @@ const TRAY_MESSAGE: u32 = WM_APP + 1;
 const MENU_GUEST: u32 = 1;
 const MENU_GUEST_VIRTUALBOX: u32 = 11;
 const MENU_GUEST_VMWARE: u32 = 12;
-const MENU_DISASSEMBLER: u32 = 2;
-const MENU_DISASSEMBLER_IDA: u32 = 21;
-const MENU_DISASSEMBLER_X64DBG: u32 = 22;
+// const MENU_DISASSEMBLER: u32 = 2;
 const MENU_DEBUGGER: u32 = 3;
+const MENU_DEBUGGER_OLLY: u32 = 31;
+const MENU_DEBUGGER_WINDBG: u32 = 32;
+const MENU_DEBUGGER_X64DBG: u32 = 33;
+const MENU_DEBUGGER_IDA: u32 = 34;
 const MENU_ANTIVIRUS: u32 = 4;
-const MENU_FIREWALL: u32 = 5;
+const MENU_ANTIVIRUS_BITDEFENDER: u32 = 41;
+const MENU_ANTIVIRUS_NORTON: u32 = 42;
+const MENU_ANTIVIRUS_TREND_MICRO: u32 = 43;
+const MENU_ANTIVIRUS_KASPERSKY: u32 = 44;
+const MENU_ANTIVIRUS_AVIRA: u32 = 45;
+const MENU_ANTIVIRUS_AVAST: u32 = 46;
+const MENU_ANTIVIRUS_MCAFEE: u32 = 47;
+const MENU_ANTIVIRUS_DRWEB: u32 = 48;
+const MENU_ANTIVIRUS_ESET_NOD32: u32 = 49;
+const MENU_ANTIVIRUS_SOPHOS: u32 = 50;
+const MENU_ANTIVIRUS_PANDA: u32 = 51;
+const MENU_ANTIVIRUS_WEBROOT: u32 = 52;
+const MENU_ANTIVIRUS_MALWAREBYTES: u32 = 53;
+const MENU_ANTIVIRUS_FSECURE: u32 = 54;
+const MENU_ANTIVIRUS_GDATA: u32 = 55;
+const MENU_FIREWALL: u32 = 8;
+const MENU_FIREWALL_ZONEALARM: u32 = 81;
+const MENU_FIREWALL_GLASSWIRE: u32 = 82;
+const MENU_FIREWALL_COMODO: u32 = 83;
+const MENU_FIREWALL_TINYWALL: u32 = 84;
+const MENU_TOOLS: u32 = 90;
+
 const MENU_ABOUT: u32 = 10;
 const MENU_EXIT: u32 = 77;
 const MENU_PAUSE: u32 = 78;
 const MENU_RESUME: u32 = 79;
 
 // Selected by default
-const SELECTED_VALUES: [u32; 2] = [MENU_GUEST_VIRTUALBOX, MENU_DISASSEMBLER_IDA];
+const SELECTED_VALUES: [u32; 4] = [MENU_GUEST_VIRTUALBOX, MENU_DEBUGGER_IDA, MENU_FIREWALL_ZONEALARM, MENU_ANTIVIRUS_MCAFEE];
 
 // Main menu
 static mut MENU: HMENU = 0;
@@ -180,7 +203,7 @@ unsafe extern "system" fn wndproc(
                 // TODO: Pause all or resume all
                 0
             }
-            MENU_GUEST | MENU_DISASSEMBLER | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL => {
+            MENU_GUEST | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL => {
                 // This should never happen. Assert?
                 MessageBoxW(
                     0,
@@ -190,10 +213,31 @@ unsafe extern "system" fn wndproc(
                 );
                 0
             }
-            MENU_DISASSEMBLER_IDA
-            | MENU_DISASSEMBLER_X64DBG
+            MENU_DEBUGGER_OLLY
+            | MENU_DEBUGGER_WINDBG
+            | MENU_DEBUGGER_X64DBG
+            | MENU_DEBUGGER_IDA
             | MENU_GUEST_VIRTUALBOX
-            | MENU_GUEST_VMWARE => {
+            | MENU_GUEST_VMWARE
+            | MENU_FIREWALL_COMODO
+            | MENU_FIREWALL_GLASSWIRE
+            | MENU_FIREWALL_TINYWALL
+            | MENU_FIREWALL_ZONEALARM 
+            | MENU_ANTIVIRUS_AVAST
+            | MENU_ANTIVIRUS_AVIRA
+            | MENU_ANTIVIRUS_BITDEFENDER
+            | MENU_ANTIVIRUS_DRWEB
+            | MENU_ANTIVIRUS_ESET_NOD32
+            | MENU_ANTIVIRUS_FSECURE
+            | MENU_ANTIVIRUS_GDATA
+            | MENU_ANTIVIRUS_KASPERSKY
+            | MENU_ANTIVIRUS_MALWAREBYTES
+            | MENU_ANTIVIRUS_MCAFEE
+            | MENU_ANTIVIRUS_NORTON
+            | MENU_ANTIVIRUS_PANDA
+            | MENU_ANTIVIRUS_SOPHOS
+            | MENU_ANTIVIRUS_TREND_MICRO
+            | MENU_ANTIVIRUS_WEBROOT => {
                 // TODO: Is there a nice way to bind this variable?
                 let m = LOWORD!(wparam);
                 flip_menu_state(MENU, m);
@@ -266,17 +310,71 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
         },
     ];
 
-    let disassembler_entries: Vec<MenuEntry> = vec![
+    let debugger_entries: Vec<MenuEntry> = vec![
         MenuEntry {
-            id: MENU_DISASSEMBLER_IDA,
-            entry_text: "IDA Pro",
+            id: MENU_DEBUGGER_OLLY,
+            entry_text: "OllyDBG",
             process_name: "TODO",
             process_child: None,
         },
         MenuEntry {
-            id: MENU_DISASSEMBLER_X64DBG,
+            id: MENU_DEBUGGER_WINDBG,
+            entry_text: "WinDBG",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_DEBUGGER_X64DBG,
             entry_text: "x64dbg",
             process_name: "x64dbg.exe",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_DEBUGGER_IDA,
+            entry_text: "IDA Pro",
+            process_name: "TODO",
+            process_child: None,
+        },
+    ];
+
+    let antivirus_entries: Vec<MenuEntry> = vec![
+        MenuEntry {
+            id: MENU_ANTIVIRUS_AVAST,
+            entry_text: "Avast",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_ANTIVIRUS_AVIRA,
+            entry_text: "Avira",
+            process_name: "TODO",
+            process_child: None,
+        },
+    ];
+
+    let firewall_entries: Vec<MenuEntry> = vec![
+        MenuEntry {
+            id: MENU_FIREWALL_ZONEALARM,
+            entry_text: "ZoneAlarm",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_FIREWALL_GLASSWIRE,
+            entry_text: "GlassWire",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_FIREWALL_COMODO,
+            entry_text: "Comodo",
+            process_name: "TODO",
+            process_child: None,
+        },
+        MenuEntry {
+            id: MENU_FIREWALL_TINYWALL,
+            entry_text: "TinyWall",
+            process_name: "TODO",
             process_child: None,
         },
     ];
@@ -284,7 +382,6 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     let mut pause = utf16_null!("Pause");
     let mut resume = utf16_null!("Resume");
     let mut vm_guest = utf16_null!("VM guest process");
-    let mut disasm = utf16_null!("Disassembler");
     let mut debugger = utf16_null!("Debugger");
     let mut antivirus = utf16_null!("Antivirus");
     let mut firewall = utf16_null!("Firewall");
@@ -294,8 +391,14 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     let guest_submenu: HMENU = CreatePopupMenu();
     append_menu(guest_submenu, &guest_entries);
 
-    let disassembler_submenu: HMENU = CreatePopupMenu();
-    append_menu(disassembler_submenu, &disassembler_entries);
+    let debugger_submenu: HMENU = CreatePopupMenu();
+    append_menu(debugger_submenu, &debugger_entries);
+
+    let antivirus_submenu: HMENU = CreatePopupMenu();
+    append_menu(antivirus_submenu, &antivirus_entries);
+
+    let firewall_submenu: HMENU = CreatePopupMenu();
+    append_menu(firewall_submenu, &firewall_entries);
 
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(
@@ -314,28 +417,19 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     AppendMenuW(
         menu,
         MF_STRING | MF_POPUP,
-        disassembler_submenu as usize,
-        PWSTR(disasm.as_mut_ptr()),
-    );
-    AppendMenuW(
-        menu,
-        // if DEFAULT_MENU_STATE.debugger {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
-        MF_UNCHECKED | MF_STRING,
-        MENU_DEBUGGER as usize,
+        debugger_submenu as usize,
         PWSTR(debugger.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        // if DEFAULT_MENU_STATE.antivirus {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
-        MF_UNCHECKED | MF_STRING,
-        MENU_ANTIVIRUS as usize,
+        MF_STRING | MF_POPUP,
+        antivirus_submenu as usize,
         PWSTR(antivirus.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
-        // if DEFAULT_MENU_STATE.firewall {MF_CHECKED} else {MF_UNCHECKED} | MF_STRING,
-        MF_UNCHECKED | MF_STRING,
-        MENU_FIREWALL as usize,
+        MF_STRING | MF_POPUP,
+        firewall_submenu as usize,
         PWSTR(firewall.as_mut_ptr()),
     );
     AppendMenuW(menu, MF_SEPARATOR, 0, None);
