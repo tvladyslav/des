@@ -12,7 +12,7 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
-// use std::process::Command;
+use std::process::Command;
 
 mod state;
 use state::*;
@@ -32,6 +32,7 @@ const MENU_DEBUGGER_OLLY: u32 = 31;
 const MENU_DEBUGGER_WINDBG: u32 = 32;
 const MENU_DEBUGGER_X64DBG: u32 = 33;
 const MENU_DEBUGGER_IDA: u32 = 34;
+const MENU_DEBUGGER_IMMUNITY: u32 = 35;
 const MENU_ANTIVIRUS: u32 = 4;
 const MENU_ANTIVIRUS_BITDEFENDER: u32 = 41;
 const MENU_ANTIVIRUS_NORTON: u32 = 42;
@@ -54,17 +55,49 @@ const MENU_FIREWALL_GLASSWIRE: u32 = 82;
 const MENU_FIREWALL_COMODO: u32 = 83;
 const MENU_FIREWALL_TINYWALL: u32 = 84;
 const MENU_TOOLS: u32 = 90;
-
+/*
+const MENU_TOOLS_PEID: u32 = 91;
+const MENU_TOOLS_RESOURCE_HACKER: u32 = 92;
+const MENU_TOOLS_DIE: u32 = 93;
+const MENU_TOOLS_BYTECODE_VIEWER: u32 = 94;
+const MENU_TOOLS_PROCESS_MONITOR: u32 = 95;
+const MENU_TOOLS_PROCESS_EXPLORER: u32 = 96;
+const MENU_TOOLS_TCPVIEW: u32 = 97;
+const MENU_TOOLS_WIRESHARK: u32 = 98;
+const MENU_TOOLS_PE_TOOLS: u32 = 99;
+*/
 const MENU_ABOUT: u32 = 10;
 const MENU_EXIT: u32 = 77;
 const MENU_PAUSE: u32 = 78;
 const MENU_RESUME: u32 = 79;
+
+const MENU_MAX: usize = 100;
 
 // Selected by default
 const SELECTED_VALUES: [u32; 4] = [MENU_GUEST_VIRTUALBOX, MENU_DEBUGGER_IDA, MENU_FIREWALL_ZONEALARM, MENU_ANTIVIRUS_MCAFEE];
 
 // Main menu
 static mut MENU: HMENU = 0;
+
+static mut IS_PAUSED: bool = false;
+
+// TODO: BTreeMap when "const new" becomes stable (1.60)
+// Nowdays it is a sparse array
+static mut MENU_ENTRIES: [Option<MenuEntry>; 13] = [
+    None, None, None, None, None, None, None, None, None, None, None, 
+    Some(MenuEntry {
+        id: MENU_GUEST_VIRTUALBOX,
+        entry_text: "VirtualBox",
+        process_name: "TODO",
+        process_child: None,
+    }),
+    Some(MenuEntry {
+        id: MENU_GUEST_VMWARE,
+        entry_text: "VMware",
+        process_name: "TODO",
+        process_child: None,
+    }),
+];
 
 fn to_utf16(text: &str) -> Vec<u16> {
     return text.encode_utf16().chain(std::iter::once(0)).collect();
@@ -168,12 +201,23 @@ fn main() -> windows::core::Result<()> {
 }
 
 unsafe fn flip_menu_state(context_menu: HMENU, menu_item: u32) {
-    let state: u32 = GetMenuState(context_menu, menu_item, MF_BYCOMMAND);
+    // let state: u32 = GetMenuState(context_menu, menu_item, MF_BYCOMMAND);
 
-    if state == MF_CHECKED {
-        CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);
-    } else {
-        CheckMenuItem(context_menu, menu_item, MF_CHECKED);
+    let usize_menu_item = menu_item as usize;
+
+    let menu_entry: &mut MenuEntry = MENU_ENTRIES[usize_menu_item].as_mut().expect("This menu entry doesn't exist");
+    assert!(menu_item == menu_entry.id);
+
+    match &mut menu_entry.process_child {
+        Some(proc) => {
+            CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);
+            proc.kill();
+            menu_entry.process_child = None;
+        },
+        None => {
+            CheckMenuItem(context_menu, menu_item, MF_CHECKED);
+            menu_entry.process_child = Some(Command::new("ping").arg("bash.im").spawn().unwrap());
+        }
     }
 }
 
@@ -203,7 +247,7 @@ unsafe extern "system" fn wndproc(
                 // TODO: Pause all or resume all
                 0
             }
-            MENU_GUEST | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL => {
+            MENU_GUEST | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL | MENU_TOOLS => {
                 // This should never happen. Assert?
                 MessageBoxW(
                     0,
@@ -217,6 +261,7 @@ unsafe extern "system" fn wndproc(
             | MENU_DEBUGGER_WINDBG
             | MENU_DEBUGGER_X64DBG
             | MENU_DEBUGGER_IDA
+            | MENU_DEBUGGER_IMMUNITY
             | MENU_GUEST_VIRTUALBOX
             | MENU_GUEST_VMWARE
             | MENU_FIREWALL_COMODO
@@ -335,6 +380,12 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
             process_name: "TODO",
             process_child: None,
         },
+        MenuEntry {
+            id: MENU_DEBUGGER_IMMUNITY,
+            entry_text: "Immunity",
+            process_name: "TODO",
+            process_child: None,
+        },
     ];
 
     let antivirus_entries: Vec<MenuEntry> = vec![
@@ -380,7 +431,7 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     ];
 
     let mut pause = utf16_null!("Pause");
-    let mut resume = utf16_null!("Resume");
+    let _resume = utf16_null!("Resume");
     let mut vm_guest = utf16_null!("VM guest process");
     let mut debugger = utf16_null!("Debugger");
     let mut antivirus = utf16_null!("Antivirus");
