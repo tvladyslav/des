@@ -2,7 +2,7 @@
 name = "des-resident"
 description = "Resident process that starts and stops stubs."
 version = "0.1.0"
-authors = ["crypto-universe <ykp@protonmail.ch>"]
+authors = ["tvladyslav <ykp@protonmail.ch>"]
 edition = "2018"
 license = "GPL v3"
 

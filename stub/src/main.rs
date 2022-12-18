@@ -13,6 +13,7 @@ mod macros;
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
+    // TODO: some argument key
     if std::env::args().count() == 1 {
         execute!(MessageBoxW(
             0,

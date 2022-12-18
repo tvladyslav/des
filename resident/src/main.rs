@@ -12,6 +12,8 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
+use std::collections::BTreeMap;
+use std::fs;
 use std::process::Command;
 
 mod state;
@@ -71,7 +73,7 @@ const MENU_EXIT: u32 = 77;
 const MENU_PAUSE: u32 = 78;
 const MENU_RESUME: u32 = 79;
 
-const MENU_MAX: usize = 100;
+const HOME_FOLDER: &str = "./target/debug/";
 
 // Selected by default
 const SELECTED_VALUES: [u32; 4] = [MENU_GUEST_VIRTUALBOX, MENU_DEBUGGER_IDA, MENU_FIREWALL_ZONEALARM, MENU_ANTIVIRUS_MCAFEE];
@@ -80,24 +82,109 @@ const SELECTED_VALUES: [u32; 4] = [MENU_GUEST_VIRTUALBOX, MENU_DEBUGGER_IDA, MEN
 static mut MENU: HMENU = 0;
 
 static mut IS_PAUSED: bool = false;
+static mut PAUSED_PROCESSES: Vec<u32> = Vec::new();
 
-// TODO: BTreeMap when "const new" becomes stable (1.60)
-// Nowdays it is a sparse array
-static mut MENU_ENTRIES: [Option<MenuEntry>; 13] = [
-    None, None, None, None, None, None, None, None, None, None, None, 
-    Some(MenuEntry {
+// const BTreeMap::new is available since 1.66
+// It is not possible to initalize map in place without external crates
+// which enables lazy evaluations.
+// I prefer less dependencies to lazy initialization.
+static mut MENU_ENTRIES: BTreeMap<u32, MenuEntry> = BTreeMap::new();
+
+// Must be unsafe because modifies mutable static variable
+unsafe fn init_menu_entries() {
+    MENU_ENTRIES.insert(MENU_GUEST_VIRTUALBOX, MenuEntry {
         id: MENU_GUEST_VIRTUALBOX,
         entry_text: "VirtualBox",
-        process_name: "TODO",
+        process_name: "virtualbox.exe",
         process_child: None,
-    }),
-    Some(MenuEntry {
+    });
+    MENU_ENTRIES.insert(MENU_GUEST_VMWARE, MenuEntry {
         id: MENU_GUEST_VMWARE,
         entry_text: "VMware",
+        process_name: "vmware.exe",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_DEBUGGER_OLLY, MenuEntry {
+        id: MENU_DEBUGGER_OLLY,
+        entry_text: "OllyDBG",
         process_name: "TODO",
         process_child: None,
-    }),
-];
+    });
+    MENU_ENTRIES.insert(MENU_DEBUGGER_WINDBG, MenuEntry {
+        id: MENU_DEBUGGER_WINDBG,
+        entry_text: "WinDBG",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_DEBUGGER_X64DBG, MenuEntry {
+        id: MENU_DEBUGGER_X64DBG,
+        entry_text: "x64dbg",
+        process_name: "x64dbg.exe",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_DEBUGGER_IDA, MenuEntry {
+        id: MENU_DEBUGGER_IDA,
+        entry_text: "IDA Pro",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_DEBUGGER_IMMUNITY, MenuEntry {
+        id: MENU_DEBUGGER_IMMUNITY,
+        entry_text: "Immunity",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_ANTIVIRUS_AVAST, MenuEntry {
+        id: MENU_ANTIVIRUS_AVAST,
+        entry_text: "Avast",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_ANTIVIRUS_AVIRA, MenuEntry {
+        id: MENU_ANTIVIRUS_AVIRA,
+        entry_text: "Avira",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_FIREWALL_ZONEALARM, MenuEntry {
+        id: MENU_FIREWALL_ZONEALARM,
+        entry_text: "ZoneAlarm",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_FIREWALL_GLASSWIRE, MenuEntry {
+        id: MENU_FIREWALL_GLASSWIRE,
+        entry_text: "GlassWire",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_FIREWALL_COMODO, MenuEntry {
+        id: MENU_FIREWALL_COMODO,
+        entry_text: "Comodo",
+        process_name: "TODO",
+        process_child: None,
+    });
+    MENU_ENTRIES.insert(MENU_FIREWALL_TINYWALL, MenuEntry {
+        id: MENU_FIREWALL_TINYWALL,
+        entry_text: "TinyWall",
+        process_name: "TODO",
+        process_child: None,
+    });
+}
+
+#[must_use]
+unsafe fn stop_running_processes() -> Vec<u32> {
+    let mut stopped_processes: Vec<u32> = Vec::new();
+    for (id, me) in &mut MENU_ENTRIES {
+        if let Some(c) = &mut me.process_child {
+            stopped_processes.push(*id);
+            let res = c.kill();
+            debug_assert!(res.is_ok());
+        }
+    }
+
+    stopped_processes
+}
 
 fn to_utf16(text: &str) -> Vec<u16> {
     return text.encode_utf16().chain(std::iter::once(0)).collect();
@@ -105,6 +192,8 @@ fn to_utf16(text: &str) -> Vec<u16> {
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
+    unsafe { init_menu_entries() };
+
     let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
 
     let icon_handle = execute!(LoadImageW(
@@ -203,20 +292,29 @@ fn main() -> windows::core::Result<()> {
 unsafe fn flip_menu_state(context_menu: HMENU, menu_item: u32) {
     // let state: u32 = GetMenuState(context_menu, menu_item, MF_BYCOMMAND);
 
-    let usize_menu_item = menu_item as usize;
+    let menu_entry: &mut MenuEntry = MENU_ENTRIES.get_mut(&menu_item).expect("This menu entry doesn't exist");
+    debug_assert!(menu_item == menu_entry.id, "Id mismatch, revisit the MENU_ENTRIES map please.");
 
-    let menu_entry: &mut MenuEntry = MENU_ENTRIES[usize_menu_item].as_mut().expect("This menu entry doesn't exist");
-    assert!(menu_item == menu_entry.id);
+    let home_folder: String = HOME_FOLDER.into();
+    let process_path = home_folder.clone() + menu_entry.process_name;
 
     match &mut menu_entry.process_child {
         Some(proc) => {
             CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);
-            proc.kill();
+            let res1 = proc.kill();
+            debug_assert!(res1.is_ok());
+            let res2 = fs::remove_file(process_path);
+            debug_assert!(res2.is_ok());
             menu_entry.process_child = None;
         },
         None => {
             CheckMenuItem(context_menu, menu_item, MF_CHECKED);
-            menu_entry.process_child = Some(Command::new("ping").arg("bash.im").spawn().unwrap());
+            // TODO: Check stub's SHA3
+
+            let res = fs::copy(home_folder + "des-stub.exe", &process_path);
+            debug_assert!(res.is_ok());
+            menu_entry.process_child = Some(Command::new(&process_path).arg("arg1").spawn().expect("Failed to start command!"));
+            // menu_entry.process_child = Some(Command::new("ping").args(["/n", "10", "bash.im"]).spawn().expect("Failed to start command!"));
         }
     }
 }
@@ -227,7 +325,7 @@ unsafe extern "system" fn wndproc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    match message as u32 {
+    match message {
         TRAY_MESSAGE => match LOWORD!(lparam) {
             WM_LBUTTONUP => {
                 ShowWindow(window, SW_RESTORE);
@@ -267,7 +365,7 @@ unsafe extern "system" fn wndproc(
             | MENU_FIREWALL_COMODO
             | MENU_FIREWALL_GLASSWIRE
             | MENU_FIREWALL_TINYWALL
-            | MENU_FIREWALL_ZONEALARM 
+            | MENU_FIREWALL_ZONEALARM
             | MENU_ANTIVIRUS_AVAST
             | MENU_ANTIVIRUS_AVIRA
             | MENU_ANTIVIRUS_BITDEFENDER
@@ -317,13 +415,15 @@ unsafe extern "system" fn wndproc(
 
 unsafe fn exit_routine() -> LRESULT {
     DestroyMenu(MENU);
+    let _ignored = stop_running_processes();
+    MENU_ENTRIES.clear();
     PostQuitMessage(0);
     0
 }
 
-fn append_menu(menu: HMENU, entries: &[MenuEntry]) {
-    for e in entries {
-        let bird = if SELECTED_VALUES.contains(&e.id) {
+fn append_menu(menu: HMENU, entry_ids: &[u32]) {
+    for e in entry_ids {
+        let bird = if SELECTED_VALUES.contains(e) {
             MF_CHECKED
         } else {
             MF_UNCHECKED
@@ -332,102 +432,28 @@ fn append_menu(menu: HMENU, entries: &[MenuEntry]) {
             AppendMenuW(
                 menu,
                 bird | MF_STRING,
-                e.id as usize,
-                PWSTR(to_utf16(e.entry_text).as_mut_ptr()),
+                *e as usize,
+                PWSTR(to_utf16(MENU_ENTRIES.get(e).unwrap().entry_text).as_mut_ptr()),
             )
         };
     }
 }
 
 unsafe fn create_menu(context_menu: &mut HMENU) {
-    let guest_entries: Vec<MenuEntry> = vec![
-        MenuEntry {
-            id: MENU_GUEST_VIRTUALBOX,
-            entry_text: "VirtualBox",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_GUEST_VMWARE,
-            entry_text: "VMware",
-            process_name: "TODO",
-            process_child: None,
-        },
+    let guest_entries: &[u32] = &[MENU_GUEST_VIRTUALBOX, MENU_GUEST_VMWARE];
+
+    let debugger_entries: &[u32] = &[
+        MENU_DEBUGGER_OLLY,
+        MENU_DEBUGGER_WINDBG,
+        MENU_DEBUGGER_X64DBG,
+        MENU_DEBUGGER_IDA,
+        MENU_DEBUGGER_IMMUNITY,
     ];
 
-    let debugger_entries: Vec<MenuEntry> = vec![
-        MenuEntry {
-            id: MENU_DEBUGGER_OLLY,
-            entry_text: "OllyDBG",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_DEBUGGER_WINDBG,
-            entry_text: "WinDBG",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_DEBUGGER_X64DBG,
-            entry_text: "x64dbg",
-            process_name: "x64dbg.exe",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_DEBUGGER_IDA,
-            entry_text: "IDA Pro",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_DEBUGGER_IMMUNITY,
-            entry_text: "Immunity",
-            process_name: "TODO",
-            process_child: None,
-        },
-    ];
+    let antivirus_entries: &[u32] = &[MENU_ANTIVIRUS_AVAST, MENU_ANTIVIRUS_AVIRA];
 
-    let antivirus_entries: Vec<MenuEntry> = vec![
-        MenuEntry {
-            id: MENU_ANTIVIRUS_AVAST,
-            entry_text: "Avast",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_ANTIVIRUS_AVIRA,
-            entry_text: "Avira",
-            process_name: "TODO",
-            process_child: None,
-        },
-    ];
-
-    let firewall_entries: Vec<MenuEntry> = vec![
-        MenuEntry {
-            id: MENU_FIREWALL_ZONEALARM,
-            entry_text: "ZoneAlarm",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_FIREWALL_GLASSWIRE,
-            entry_text: "GlassWire",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_FIREWALL_COMODO,
-            entry_text: "Comodo",
-            process_name: "TODO",
-            process_child: None,
-        },
-        MenuEntry {
-            id: MENU_FIREWALL_TINYWALL,
-            entry_text: "TinyWall",
-            process_name: "TODO",
-            process_child: None,
-        },
+    let firewall_entries: &[u32] = &[
+        MENU_FIREWALL_ZONEALARM, MENU_FIREWALL_GLASSWIRE, MENU_FIREWALL_COMODO, MENU_FIREWALL_TINYWALL
     ];
 
     let mut pause = utf16_null!("Pause");
@@ -440,16 +466,16 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     let mut exit = utf16_null!("Exit");
 
     let guest_submenu: HMENU = CreatePopupMenu();
-    append_menu(guest_submenu, &guest_entries);
+    append_menu(guest_submenu, guest_entries);
 
     let debugger_submenu: HMENU = CreatePopupMenu();
-    append_menu(debugger_submenu, &debugger_entries);
+    append_menu(debugger_submenu, debugger_entries);
 
     let antivirus_submenu: HMENU = CreatePopupMenu();
-    append_menu(antivirus_submenu, &antivirus_entries);
+    append_menu(antivirus_submenu, antivirus_entries);
 
     let firewall_submenu: HMENU = CreatePopupMenu();
-    append_menu(firewall_submenu, &firewall_entries);
+    append_menu(firewall_submenu, firewall_entries);
 
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(

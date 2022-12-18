@@ -1,8 +1,8 @@
 [package]
 name = "des-stub"
-description = "Dummy process that do nothing."
+description = "Dummy process that does nothing."
 version = "0.1.0"
-authors = ["crypto-universe <ykp@protonmail.ch>"]
+authors = ["tvladyslav <ykp@protonmail.ch>"]
 edition = "2018"
 license = "GPL v3"
 
