@@ -25,6 +25,7 @@ impl <'u> MenuEntry<'u> {
                 *process_child = Some(Command::new(&process_path).arg("arg1").spawn().expect("Failed to start command!"))
             }
         }
+        self.is_active = true;
     }
 
     pub fn stop_process(&mut self) {
@@ -33,11 +34,13 @@ impl <'u> MenuEntry<'u> {
             if let Some(proc) = process_child {
                 let res1 = proc.kill();
                 debug_assert!(res1.is_ok());
+                // TODO: make this removal optional
                 let res2 = fs::remove_file(process_path);
                 debug_assert!(res2.is_ok());
                 *process_child = None
             }
         }
+        self.is_active = false;
     }
 
     #[must_use]

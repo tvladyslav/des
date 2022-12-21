@@ -170,8 +170,14 @@ unsafe extern "system" fn wndproc(
             _ => DefWindowProcW(window, message, wparam, lparam),
         },
         WM_COMMAND => match LOWORD!(wparam) {
-            MENU_PAUSE | MENU_RESUME => {
-                // TODO: Pause all or resume all
+            MENU_PAUSE=> {
+                // TODO: Modify menu UI
+                MENU_STATE.pause();
+                0
+            }
+            MENU_RESUME => {
+                // TODO: Modify menu UI
+                MENU_STATE.resume();
                 0
             }
             MENU_GUEST | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL | MENU_TOOLS => {
