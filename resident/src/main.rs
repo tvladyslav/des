@@ -300,6 +300,19 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
         MENU_FIREWALL_ZONEALARM, MENU_FIREWALL_GLASSWIRE, MENU_FIREWALL_COMODO, MENU_FIREWALL_TINYWALL
     ];
 
+    let tools_entries: &[u32] = &[
+        MENU_TOOLS_PEID,
+        MENU_TOOLS_RESOURCE_HACKER,
+        MENU_TOOLS_DIE,
+        MENU_TOOLS_BYTECODE_VIEWER,
+        MENU_TOOLS_PROCESS_MONITOR,
+        MENU_TOOLS_PROCESS_EXPLORER,
+        MENU_TOOLS_TCPVIEW,
+        MENU_TOOLS_WIRESHARK,
+        MENU_TOOLS_PE_TOOLS,
+        MENU_TOOLS_SPYXX,
+    ];
+
     let mut pause = utf16_null!("Pause");
     let _resume = utf16_null!("Resume");
     let mut vm_guest = utf16_null!("VM guest process");
@@ -320,6 +333,9 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
 
     let firewall_submenu: HMENU = CreatePopupMenu();
     append_menu(firewall_submenu, firewall_entries);
+
+    let tools_submenu: HMENU = CreatePopupMenu();
+    append_menu(tools_submenu, tools_entries);
 
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(

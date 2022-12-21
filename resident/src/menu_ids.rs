@@ -33,7 +33,7 @@ pub const MENU_FIREWALL_GLASSWIRE: u32 = 82;
 pub const MENU_FIREWALL_COMODO: u32 = 83;
 pub const MENU_FIREWALL_TINYWALL: u32 = 84;
 pub const MENU_TOOLS: u32 = 90;
-/*
+
 pub const MENU_TOOLS_PEID: u32 = 91;
 pub const MENU_TOOLS_RESOURCE_HACKER: u32 = 92;
 pub const MENU_TOOLS_DIE: u32 = 93;
@@ -43,7 +43,8 @@ pub const MENU_TOOLS_PROCESS_EXPLORER: u32 = 96;
 pub const MENU_TOOLS_TCPVIEW: u32 = 97;
 pub const MENU_TOOLS_WIRESHARK: u32 = 98;
 pub const MENU_TOOLS_PE_TOOLS: u32 = 99;
-*/
+pub const MENU_TOOLS_SPYXX: u32 = 100;
+
 pub const MENU_ABOUT: u32 = 10;
 pub const MENU_EXIT: u32 = 77;
 pub const MENU_PAUSE: u32 = 78;

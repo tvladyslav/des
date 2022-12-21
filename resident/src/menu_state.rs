@@ -122,9 +122,8 @@ impl <'m> MenuState<'m> {
         );
         self.m.insert(MENU_DEBUGGER_OLLY, MenuEntry::new(
             "OllyDBG",
-            Vec::new()
-        )
-        );
+            vec![("ollydbg.exe", None)]
+        ));
         self.m.insert(MENU_DEBUGGER_WINDBG, MenuEntry::new(
             "WinDBG",
             Vec::new()
@@ -185,6 +184,21 @@ impl <'m> MenuState<'m> {
             Vec::new()
         )
         );
+        self.m.insert(MENU_TOOLS_PEID, MenuEntry::new(
+            "PEiD",
+            vec![("PEiD.exe", None)]
+        ));
+/*
+        MENU_TOOLS_RESOURCE_HACKER,
+        MENU_TOOLS_DIE,
+        MENU_TOOLS_BYTECODE_VIEWER,
+        MENU_TOOLS_PROCESS_MONITOR,
+        MENU_TOOLS_PROCESS_EXPLORER,
+        MENU_TOOLS_TCPVIEW,
+        MENU_TOOLS_WIRESHARK,
+        MENU_TOOLS_PE_TOOLS,
+        MENU_TOOLS_SPYXX,
+*/
     }
 
 }
