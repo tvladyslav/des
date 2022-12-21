@@ -12,13 +12,17 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
+#[macro_use]
+extern crate num_derive;
+use num_traits::FromPrimitive;
+
 mod menu_entry; //TODO: remove?
 
 mod menu_state;
 use menu_state::*;
 
 mod menu_ids;
-use menu_ids::*;
+use menu_ids::MenuId;
 
 #[macro_use]
 mod macros;
@@ -27,7 +31,12 @@ const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
 
 // Selected by default
-const SELECTED_VALUES: [u32; 4] = [MENU_GUEST_VIRTUALBOX, MENU_DEBUGGER_IDA, MENU_FIREWALL_ZONEALARM, MENU_ANTIVIRUS_MCAFEE];
+const SELECTED_VALUES: [MenuId; 1] = [
+    MenuId::GUEST_VIRTUALBOX,
+    // MenuId::DEBUGGER_IDA,
+    // MenuId::FIREWALL_ZONEALARM,
+    // MenuId::ANTIVIRUS_MCAFEE,
+];
 
 // Main menu
 static mut MENU_TRAY: HMENU = 0;
@@ -136,15 +145,15 @@ fn main() -> windows::core::Result<()> {
     Ok(())
 }
 
-unsafe fn flip_menu_state(context_menu: HMENU, menu_item: u32) {
+unsafe fn flip_menu_state(context_menu: HMENU, menu_item: MenuId) -> std::io::Result<()> {
     let is_active = MENU_STATE.is_process_active(&menu_item);
 
-    if is_active{
-        CheckMenuItem(context_menu, menu_item, MF_UNCHECKED);
-        MENU_STATE.stop_process(&menu_item);
+    if is_active {
+        CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED);
+        MENU_STATE.stop_process(&menu_item)
     } else {
-        CheckMenuItem(context_menu, menu_item, MF_CHECKED);
-        MENU_STATE.start_process(&menu_item);
+        CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED);
+        MENU_STATE.start_process(&menu_item)
     }
 }
 
@@ -169,75 +178,83 @@ unsafe extern "system" fn wndproc(
             }
             _ => DefWindowProcW(window, message, wparam, lparam),
         },
-        WM_COMMAND => match LOWORD!(wparam) {
-            MENU_PAUSE=> {
-                // TODO: Modify menu UI
-                MENU_STATE.pause();
-                0
+        WM_COMMAND => {
+            let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap();
+            match lo_wparam {
+                MenuId::PAUSE => {
+                    // TODO: Modify menu UI
+                    MENU_STATE.pause();
+                    0
+                }
+                MenuId::RESUME => {
+                    // TODO: Modify menu UI
+                    MENU_STATE.resume();
+                    0
+                }
+                MenuId::GUEST
+                // | MenuId::DEBUGGER
+                // | MenuId::ANTIVIRUS
+                // | MenuId::FIREWALL
+                // | MenuId::TOOLS
+                => {
+                    // This should never happen. Assert?
+                    MessageBoxW(
+                        0,
+                        PWSTR(utf16_null!("Selected non-active menu items.").as_mut_ptr()),
+                        PWSTR(utf16_null!("Error").as_mut_ptr()),
+                        MB_OK | MB_ICONERROR,
+                    );
+                    0
+                }
+                // MenuId::DEBUGGER_OLLY
+                // | MenuId::DEBUGGER_WINDBG
+                // | MenuId::DEBUGGER_X64DBG
+                // | MenuId::DEBUGGER_IDA
+                // | MenuId::DEBUGGER_IMMUNITY
+                MenuId::GUEST_VIRTUALBOX
+                | MenuId::GUEST_VMWARE
+                | MenuId::GUEST_PARALLELS
+                | MenuId::GUEST_HYPERV
+                | MenuId::GUEST_VIRTUAL_PC
+                // | MenuId::FIREWALL_COMODO
+                // | MenuId::FIREWALL_GLASSWIRE
+                // | MenuId::FIREWALL_TINYWALL
+                // | MenuId::FIREWALL_ZONEALARM
+                // | MenuId::ANTIVIRUS_AVAST
+                // | MenuId::ANTIVIRUS_AVIRA
+                // | MenuId::ANTIVIRUS_BITDEFENDER
+                // | MenuId::ANTIVIRUS_DRWEB
+                // | MenuId::ANTIVIRUS_ESCAN
+                // | MenuId::ANTIVIRUS_ESET_NOD32
+                // | MenuId::ANTIVIRUS_FSECURE
+                // | MenuId::ANTIVIRUS_GDATA
+                // | MenuId::ANTIVIRUS_KASPERSKY
+                // | MenuId::ANTIVIRUS_MALWAREBYTES
+                // | MenuId::ANTIVIRUS_MCAFEE
+                // | MenuId::ANTIVIRUS_NORTON
+                // | MenuId::ANTIVIRUS_PANDA
+                // | MenuId::ANTIVIRUS_SOPHOS
+                // | MenuId::ANTIVIRUS_TREND_MICRO
+                // | MenuId::ANTIVIRUS_WEBROOT
+                => {
+                    // TODO: Is there a nice way to bind this variable?
+                    flip_menu_state(MENU_TRAY, lo_wparam);
+                    0
+                }
+                MenuId::ABOUT => {
+                    MessageBoxA(window, "About", "Caption", MB_OK);
+                    0
+                }
+                MenuId::EXIT => {
+                    SendMessageW(window, WM_CLOSE, 0, 0);
+                    0
+                }
+                _ => {
+                    MessageBoxA(window, wparam.to_string(), "Unknown command", MB_OK);
+                    0
+                }
             }
-            MENU_RESUME => {
-                // TODO: Modify menu UI
-                MENU_STATE.resume();
-                0
-            }
-            MENU_GUEST | MENU_DEBUGGER | MENU_ANTIVIRUS | MENU_FIREWALL | MENU_TOOLS => {
-                // This should never happen. Assert?
-                MessageBoxW(
-                    0,
-                    PWSTR(utf16_null!("Selected non-active menu items.").as_mut_ptr()),
-                    PWSTR(utf16_null!("Error").as_mut_ptr()),
-                    MB_OK | MB_ICONERROR,
-                );
-                0
-            }
-            MENU_DEBUGGER_OLLY
-            | MENU_DEBUGGER_WINDBG
-            | MENU_DEBUGGER_X64DBG
-            | MENU_DEBUGGER_IDA
-            | MENU_DEBUGGER_IMMUNITY
-            | MENU_GUEST_VIRTUALBOX
-            | MENU_GUEST_VMWARE
-            | MENU_GUEST_PARALLELS
-            | MENU_GUEST_HYPERV
-            | MENU_GUEST_VIRTUAL_PC
-            | MENU_FIREWALL_COMODO
-            | MENU_FIREWALL_GLASSWIRE
-            | MENU_FIREWALL_TINYWALL
-            | MENU_FIREWALL_ZONEALARM
-            | MENU_ANTIVIRUS_AVAST
-            | MENU_ANTIVIRUS_AVIRA
-            | MENU_ANTIVIRUS_BITDEFENDER
-            | MENU_ANTIVIRUS_DRWEB
-            | MENU_ANTIVIRUS_ESCAN
-            | MENU_ANTIVIRUS_ESET_NOD32
-            | MENU_ANTIVIRUS_FSECURE
-            | MENU_ANTIVIRUS_GDATA
-            | MENU_ANTIVIRUS_KASPERSKY
-            | MENU_ANTIVIRUS_MALWAREBYTES
-            | MENU_ANTIVIRUS_MCAFEE
-            | MENU_ANTIVIRUS_NORTON
-            | MENU_ANTIVIRUS_PANDA
-            | MENU_ANTIVIRUS_SOPHOS
-            | MENU_ANTIVIRUS_TREND_MICRO
-            | MENU_ANTIVIRUS_WEBROOT => {
-                // TODO: Is there a nice way to bind this variable?
-                let m = LOWORD!(wparam);
-                flip_menu_state(MENU_TRAY, m);
-                0
-            }
-            MENU_ABOUT => {
-                MessageBoxA(window, "About", "Caption", MB_OK);
-                0
-            }
-            MENU_EXIT => {
-                SendMessageW(window, WM_CLOSE, 0, 0);
-                0
-            }
-            _ => {
-                MessageBoxA(window, wparam.to_string(), "Unknown command", MB_OK);
-                0
-            }
-        },
+        }
         WM_PAINT => {
             // println!("WM_PAINT");
             ValidateRect(window, std::ptr::null());
@@ -259,7 +276,7 @@ unsafe fn exit_routine() -> LRESULT {
     0
 }
 
-fn append_menu(menu: HMENU, entry_ids: &[u32]) {
+fn append_menu(menu: HMENU, entry_ids: &[MenuId]) {
     for e in entry_ids {
         let bird = if SELECTED_VALUES.contains(e) {
             MF_CHECKED
@@ -278,70 +295,77 @@ fn append_menu(menu: HMENU, entry_ids: &[u32]) {
 }
 
 unsafe fn create_menu(context_menu: &mut HMENU) {
-    let guest_entries: &[u32] = &[
-        MENU_GUEST_VIRTUALBOX,
-        MENU_GUEST_VMWARE,
-        MENU_GUEST_PARALLELS,
-        MENU_GUEST_HYPERV,
-        MENU_GUEST_VIRTUAL_PC,
+    let guest_entries: &[MenuId] = &[
+        MenuId::GUEST_VIRTUALBOX,
+        MenuId::GUEST_VMWARE,
+        MenuId::GUEST_PARALLELS,
+        MenuId::GUEST_HYPERV,
+        MenuId::GUEST_VIRTUAL_PC,
     ];
 
-    let debugger_entries: &[u32] = &[
-        MENU_DEBUGGER_OLLY,
-        MENU_DEBUGGER_WINDBG,
-        MENU_DEBUGGER_X64DBG,
-        MENU_DEBUGGER_IDA,
-        MENU_DEBUGGER_IMMUNITY,
-    ];
+    // let debugger_entries: &[MenuId] = &[
+    //     MenuId::DEBUGGER_OLLY,
+    //     MenuId::DEBUGGER_WINDBG,
+    //     MenuId::DEBUGGER_X64DBG,
+    //     MenuId::DEBUGGER_IDA,
+    //     MenuId::DEBUGGER_IMMUNITY,
+    // ];
 
-    let antivirus_entries: &[u32] = &[MENU_ANTIVIRUS_AVAST, MENU_ANTIVIRUS_AVIRA, MENU_ANTIVIRUS_ESCAN];
+    // let antivirus_entries: &[MenuId] = &[
+    //     MenuId::ANTIVIRUS_AVAST,
+    //     MenuId::ANTIVIRUS_AVIRA,
+    //     MenuId::ANTIVIRUS_ESCAN,
+    // ];
 
-    let firewall_entries: &[u32] = &[
-        MENU_FIREWALL_ZONEALARM, MENU_FIREWALL_GLASSWIRE, MENU_FIREWALL_COMODO, MENU_FIREWALL_TINYWALL
-    ];
+    // let firewall_entries: &[MenuId] = &[
+    //     MenuId::FIREWALL_ZONEALARM,
+    //     MenuId::FIREWALL_GLASSWIRE,
+    //     MenuId::FIREWALL_COMODO,
+    //     MenuId::FIREWALL_TINYWALL,
+    // ];
 
-    let tools_entries: &[u32] = &[
-        MENU_TOOLS_PEID,
-        MENU_TOOLS_RESOURCE_HACKER,
-        MENU_TOOLS_DIE,
-        MENU_TOOLS_BYTECODE_VIEWER,
-        MENU_TOOLS_PROCESS_MONITOR,
-        MENU_TOOLS_PROCESS_EXPLORER,
-        MENU_TOOLS_TCPVIEW,
-        MENU_TOOLS_WIRESHARK,
-        MENU_TOOLS_PE_TOOLS,
-        MENU_TOOLS_SPYXX,
-    ];
+    // let tools_entries: &[MenuId] = &[
+    //     MenuId::TOOLS_PEID,
+    //     MenuId::TOOLS_RESOURCE_HACKER,
+    //     MenuId::TOOLS_DIE,
+    //     MenuId::TOOLS_BYTECODE_VIEWER,
+    //     MenuId::TOOLS_PROCESS_MONITOR,
+    //     MenuId::TOOLS_PROCESS_EXPLORER,
+    //     MenuId::TOOLS_TCPVIEW,
+    //     MenuId::TOOLS_WIRESHARK,
+    //     MenuId::TOOLS_PE_TOOLS,
+    //     MenuId::TOOLS_SPYXX,
+    // ];
 
     let mut pause = utf16_null!("Pause");
     let _resume = utf16_null!("Resume");
     let mut vm_guest = utf16_null!("VM guest process");
-    let mut debugger = utf16_null!("Debugger");
-    let mut antivirus = utf16_null!("Antivirus");
-    let mut firewall = utf16_null!("Firewall");
+    // let mut debugger = utf16_null!("Debugger");
+    // let mut antivirus = utf16_null!("Antivirus");
+    // let mut firewall = utf16_null!("Firewall");
     let mut about = utf16_null!("About");
     let mut exit = utf16_null!("Exit");
 
     let guest_submenu: HMENU = CreatePopupMenu();
     append_menu(guest_submenu, guest_entries);
 
-    let debugger_submenu: HMENU = CreatePopupMenu();
-    append_menu(debugger_submenu, debugger_entries);
+    // let debugger_submenu: HMENU = CreatePopupMenu();
+    // append_menu(debugger_submenu, debugger_entries);
 
-    let antivirus_submenu: HMENU = CreatePopupMenu();
-    append_menu(antivirus_submenu, antivirus_entries);
+    // let antivirus_submenu: HMENU = CreatePopupMenu();
+    // append_menu(antivirus_submenu, antivirus_entries);
 
-    let firewall_submenu: HMENU = CreatePopupMenu();
-    append_menu(firewall_submenu, firewall_entries);
+    // let firewall_submenu: HMENU = CreatePopupMenu();
+    // append_menu(firewall_submenu, firewall_entries);
 
-    let tools_submenu: HMENU = CreatePopupMenu();
-    append_menu(tools_submenu, tools_entries);
+    // let tools_submenu: HMENU = CreatePopupMenu();
+    // append_menu(tools_submenu, tools_entries);
 
     let menu: HMENU = CreatePopupMenu();
     AppendMenuW(
         menu,
         MF_STRING,
-        MENU_PAUSE as usize,
+        MenuId::PAUSE as usize,
         PWSTR(pause.as_mut_ptr()),
     );
     AppendMenuW(menu, MF_SEPARATOR, 0, None);
@@ -351,35 +375,35 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
         guest_submenu as usize,
         PWSTR(vm_guest.as_mut_ptr()),
     );
-    AppendMenuW(
-        menu,
-        MF_STRING | MF_POPUP,
-        debugger_submenu as usize,
-        PWSTR(debugger.as_mut_ptr()),
-    );
-    AppendMenuW(
-        menu,
-        MF_STRING | MF_POPUP,
-        antivirus_submenu as usize,
-        PWSTR(antivirus.as_mut_ptr()),
-    );
-    AppendMenuW(
-        menu,
-        MF_STRING | MF_POPUP,
-        firewall_submenu as usize,
-        PWSTR(firewall.as_mut_ptr()),
-    );
+    // AppendMenuW(
+    //     menu,
+    //     MF_STRING | MF_POPUP,
+    //     debugger_submenu as usize,
+    //     PWSTR(debugger.as_mut_ptr()),
+    // );
+    // AppendMenuW(
+    //     menu,
+    //     MF_STRING | MF_POPUP,
+    //     antivirus_submenu as usize,
+    //     PWSTR(antivirus.as_mut_ptr()),
+    // );
+    // AppendMenuW(
+    //     menu,
+    //     MF_STRING | MF_POPUP,
+    //     firewall_submenu as usize,
+    //     PWSTR(firewall.as_mut_ptr()),
+    // );
     AppendMenuW(menu, MF_SEPARATOR, 0, None);
     AppendMenuW(
         menu,
         MF_STRING,
-        MENU_ABOUT as usize,
+        MenuId::ABOUT as usize,
         PWSTR(about.as_mut_ptr()),
     );
     AppendMenuW(
         menu,
         MF_STRING,
-        MENU_EXIT as usize,
+        MenuId::EXIT as usize,
         PWSTR(exit.as_mut_ptr()),
     );
 
