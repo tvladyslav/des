@@ -92,7 +92,7 @@ fn main() -> windows::core::Result<()> {
         Default::default(),
         PWSTR(class_name.as_mut_ptr()),
         PWSTR(window_name.as_mut_ptr()),
-        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        WS_DISABLED,  // WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -104,7 +104,7 @@ fn main() -> windows::core::Result<()> {
     ))?;
 
     let mut sz_tip: Vec<u16> = Vec::with_capacity(128);
-    sz_tip.extend_from_slice(&utf16_null!("Debug environment simulator"));
+    sz_tip.extend_from_slice(&utf16_null!("Hostile environment imitator"));
     sz_tip.resize(128, 0);
 
     unsafe {
@@ -167,11 +167,11 @@ unsafe extern "system" fn wndproc(
 ) -> LRESULT {
     match message {
         TRAY_MESSAGE => match LOWORD!(lparam) {
-            WM_LBUTTONUP => {
-                ShowWindow(window, SW_RESTORE);
-                0
-            }
-            WM_RBUTTONUP => {
+            // WM_LBUTTONUP => {
+            //     ShowWindow(window, SW_RESTORE);
+            //     0
+            // }
+            WM_LBUTTONUP | WM_RBUTTONUP => {
                 let mut point: POINT = Default::default();
                 GetCursorPos(&mut point);
                 let menu_handle = if MENU_STATE.is_paused() {
