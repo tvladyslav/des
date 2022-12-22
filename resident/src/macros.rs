@@ -35,6 +35,17 @@ macro_rules! dprint {
     }};
 }
 
+macro_rules! MessageBoxV {
+    ($handle:expr,$text:expr,$caption:expr,$icon:expr) => {{
+        windows::Win32::UI::WindowsAndMessaging::MessageBoxW(
+            $handle,
+            windows::Win32::Foundation::PWSTR(to_utf16($text).as_mut_ptr()),
+            windows::Win32::Foundation::PWSTR(to_utf16($caption).as_mut_ptr()),
+            $icon
+        );
+    }}
+}
+
 macro_rules! LOWORD {
     ($var:expr) => {{
         ($var as u32) & 0x0000FFFF

@@ -183,12 +183,20 @@ unsafe extern "system" fn wndproc(
             match lo_wparam {
                 MenuId::PAUSE => {
                     // TODO: Modify menu UI
-                    MENU_STATE.pause();
+                    let res = MENU_STATE.pause();
+                    if let Err(e) = res {
+                        let err_string: String = "Can't pause processes. ".to_string() + &e.to_string();
+                        MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
+                    }
                     0
                 }
                 MenuId::RESUME => {
                     // TODO: Modify menu UI
-                    MENU_STATE.resume();
+                    let res = MENU_STATE.resume();
+                    if let Err(e) = res {
+                        let err_string: String = "Can't resume processes ".to_string() + &e.to_string();
+                        MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
+                    }
                     0
                 }
                 MenuId::GUEST
@@ -198,12 +206,7 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::TOOLS
                 => {
                     // This should never happen. Assert?
-                    MessageBoxW(
-                        0,
-                        PWSTR(utf16_null!("Selected non-active menu items.").as_mut_ptr()),
-                        PWSTR(utf16_null!("Error").as_mut_ptr()),
-                        MB_OK | MB_ICONERROR,
-                    );
+                    MessageBoxV!(0, "Selected non-active menu items.", "Error", MB_OK | MB_ICONERROR);
                     0
                 }
                 // MenuId::DEBUGGER_OLLY
@@ -238,11 +241,15 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::ANTIVIRUS_WEBROOT
                 => {
                     // TODO: Is there a nice way to bind this variable?
-                    flip_menu_state(MENU_TRAY, lo_wparam);
+                    let res = flip_menu_state(MENU_TRAY, lo_wparam);
+                    if let Err(e) = res {
+                        let err_string: String = "Can't finish your request. ".to_string() + &e.to_string();
+                        MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
+                    }
                     0
                 }
                 MenuId::ABOUT => {
-                    MessageBoxA(window, "About", "Caption", MB_OK);
+                    MessageBoxV!(window, "About", "Caption", MB_OK);
                     0
                 }
                 MenuId::EXIT => {
@@ -250,7 +257,7 @@ unsafe extern "system" fn wndproc(
                     0
                 }
                 _ => {
-                    MessageBoxA(window, wparam.to_string(), "Unknown command", MB_OK);
+                    MessageBoxV!(window, &wparam.to_string(), "Unknown command", MB_OK);
                     0
                 }
             }
