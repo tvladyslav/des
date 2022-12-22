@@ -19,10 +19,13 @@ use num_traits::FromPrimitive;
 mod menu_entry; //TODO: remove?
 
 mod menu_state;
-use menu_state::*;
+use menu_state::MenuState;
 
 mod menu_ids;
 use menu_ids::MenuId;
+
+mod menu_tray;
+use menu_tray::MenuTray;
 
 #[macro_use]
 mod macros;
@@ -30,17 +33,9 @@ mod macros;
 const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
 
-// Selected by default
-const SELECTED_VALUES: [MenuId; 1] = [
-    MenuId::GUEST_VIRTUALBOX,
-    // MenuId::DEBUGGER_IDA,
-    // MenuId::FIREWALL_ZONEALARM,
-    // MenuId::ANTIVIRUS_MCAFEE,
-];
-
 // Main menu
-static mut MENU_TRAY_ACTIVE: HMENU = 0;
-static mut MENU_TRAY_PAUSED: HMENU = 0;
+static mut MENU_TRAY_ACTIVE: MenuTray = MenuTray::new();
+static mut MENU_TRAY_PAUSED: MenuTray = MenuTray::new();
 static mut MENU_STATE: MenuState = MenuState::new();
 
 fn to_utf16(text: &str) -> Vec<u16> {
@@ -108,8 +103,8 @@ fn main() -> windows::core::Result<()> {
     sz_tip.resize(128, 0);
 
     unsafe {
-        create_menu_active(&mut MENU_TRAY_ACTIVE);
-        create_menu_paused(&mut MENU_TRAY_PAUSED);
+        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE);
+        MENU_TRAY_PAUSED.create_menu_paused();
     }
 
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
@@ -175,9 +170,9 @@ unsafe extern "system" fn wndproc(
                 let mut point: POINT = Default::default();
                 GetCursorPos(&mut point);
                 let menu_handle = if MENU_STATE.is_paused() {
-                    MENU_TRAY_PAUSED
+                    *MENU_TRAY_PAUSED
                 } else {
-                    MENU_TRAY_ACTIVE
+                    *MENU_TRAY_ACTIVE
                 };
                 handle_popup_menu(window, point, menu_handle);
                 0
@@ -247,7 +242,7 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::ANTIVIRUS_WEBROOT
                 => {
                     // TODO: Is there a nice way to bind this variable?
-                    let res = flip_menu_state(MENU_TRAY_ACTIVE, lo_wparam);
+                    let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);
                     if let Err(e) = res {
                         let err_string: String = "Can't finish your request. ".to_string() + &e.to_string();
                         MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
@@ -283,173 +278,11 @@ unsafe extern "system" fn wndproc(
 
 unsafe fn exit_routine() -> LRESULT {
     // https://learn.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
-    DestroyMenu(MENU_TRAY_ACTIVE);
-    DestroyMenu(MENU_TRAY_PAUSED);
+    MENU_TRAY_ACTIVE.destroy();
+    MENU_TRAY_PAUSED.destroy();
     MENU_STATE.destroy();
     PostQuitMessage(0); // This spawns WM_QUIT which terminates main loop
     0
-}
-
-fn append_menu(menu: HMENU, entry_ids: &[MenuId]) {
-    for e in entry_ids {
-        let bird = if SELECTED_VALUES.contains(e) {
-            MF_CHECKED
-        } else {
-            MF_UNCHECKED
-        };
-        unsafe {
-            AppendMenuW(
-                menu,
-                bird | MF_STRING,
-                *e as usize,
-                PWSTR(to_utf16(MENU_STATE.get_name(e)).as_mut_ptr()),
-            )
-        };
-    }
-}
-
-unsafe fn create_menu_paused(context_menu: &mut HMENU) {
-    let mut resume = utf16_null!("Resume");
-    let mut about = utf16_null!("About");
-    let mut exit = utf16_null!("Exit");
-
-    let menu: HMENU = CreatePopupMenu();
-
-    AppendMenuW(
-        menu,
-        MF_STRING,
-        MenuId::RESUME as usize,
-        PWSTR(resume.as_mut_ptr()),
-    );
-    AppendMenuW(menu, MF_SEPARATOR, 0, None);
-    AppendMenuW(
-        menu,
-        MF_STRING,
-        MenuId::ABOUT as usize,
-        PWSTR(about.as_mut_ptr()),
-    );
-    AppendMenuW(
-        menu,
-        MF_STRING,
-        MenuId::EXIT as usize,
-        PWSTR(exit.as_mut_ptr()),
-    );
-    *context_menu = menu;
-}
-
-unsafe fn create_menu_active(context_menu: &mut HMENU) {
-    let guest_entries: &[MenuId] = &[
-        MenuId::GUEST_VIRTUALBOX,
-        MenuId::GUEST_VMWARE,
-        MenuId::GUEST_PARALLELS,
-        MenuId::GUEST_HYPERV,
-        MenuId::GUEST_VIRTUAL_PC,
-    ];
-
-    // let debugger_entries: &[MenuId] = &[
-    //     MenuId::DEBUGGER_OLLY,
-    //     MenuId::DEBUGGER_WINDBG,
-    //     MenuId::DEBUGGER_X64DBG,
-    //     MenuId::DEBUGGER_IDA,
-    //     MenuId::DEBUGGER_IMMUNITY,
-    // ];
-
-    // let antivirus_entries: &[MenuId] = &[
-    //     MenuId::ANTIVIRUS_AVAST,
-    //     MenuId::ANTIVIRUS_AVIRA,
-    //     MenuId::ANTIVIRUS_ESCAN,
-    // ];
-
-    // let firewall_entries: &[MenuId] = &[
-    //     MenuId::FIREWALL_ZONEALARM,
-    //     MenuId::FIREWALL_GLASSWIRE,
-    //     MenuId::FIREWALL_COMODO,
-    //     MenuId::FIREWALL_TINYWALL,
-    // ];
-
-    // let tools_entries: &[MenuId] = &[
-    //     MenuId::TOOLS_PEID,
-    //     MenuId::TOOLS_RESOURCE_HACKER,
-    //     MenuId::TOOLS_DIE,
-    //     MenuId::TOOLS_BYTECODE_VIEWER,
-    //     MenuId::TOOLS_PROCESS_MONITOR,
-    //     MenuId::TOOLS_PROCESS_EXPLORER,
-    //     MenuId::TOOLS_TCPVIEW,
-    //     MenuId::TOOLS_WIRESHARK,
-    //     MenuId::TOOLS_PE_TOOLS,
-    //     MenuId::TOOLS_SPYXX,
-    // ];
-
-    let mut pause = utf16_null!("Pause");
-    let mut vm_guest = utf16_null!("VM guest process");
-    // let mut debugger = utf16_null!("Debugger");
-    // let mut antivirus = utf16_null!("Antivirus");
-    // let mut firewall = utf16_null!("Firewall");
-    let mut about = utf16_null!("About");
-    let mut exit = utf16_null!("Exit");
-
-    let guest_submenu: HMENU = CreatePopupMenu();
-    append_menu(guest_submenu, guest_entries);
-
-    // let debugger_submenu: HMENU = CreatePopupMenu();
-    // append_menu(debugger_submenu, debugger_entries);
-
-    // let antivirus_submenu: HMENU = CreatePopupMenu();
-    // append_menu(antivirus_submenu, antivirus_entries);
-
-    // let firewall_submenu: HMENU = CreatePopupMenu();
-    // append_menu(firewall_submenu, firewall_entries);
-
-    // let tools_submenu: HMENU = CreatePopupMenu();
-    // append_menu(tools_submenu, tools_entries);
-
-    let menu: HMENU = CreatePopupMenu();
-    AppendMenuW(
-        menu,
-        MF_STRING,
-        MenuId::PAUSE as usize,
-        PWSTR(pause.as_mut_ptr()),
-    );
-    AppendMenuW(menu, MF_SEPARATOR, 0, None);
-    AppendMenuW(
-        menu,
-        MF_STRING | MF_POPUP,
-        guest_submenu as usize,
-        PWSTR(vm_guest.as_mut_ptr()),
-    );
-    // AppendMenuW(
-    //     menu,
-    //     MF_STRING | MF_POPUP,
-    //     debugger_submenu as usize,
-    //     PWSTR(debugger.as_mut_ptr()),
-    // );
-    // AppendMenuW(
-    //     menu,
-    //     MF_STRING | MF_POPUP,
-    //     antivirus_submenu as usize,
-    //     PWSTR(antivirus.as_mut_ptr()),
-    // );
-    // AppendMenuW(
-    //     menu,
-    //     MF_STRING | MF_POPUP,
-    //     firewall_submenu as usize,
-    //     PWSTR(firewall.as_mut_ptr()),
-    // );
-    AppendMenuW(menu, MF_SEPARATOR, 0, None);
-    AppendMenuW(
-        menu,
-        MF_STRING,
-        MenuId::ABOUT as usize,
-        PWSTR(about.as_mut_ptr()),
-    );
-    AppendMenuW(
-        menu,
-        MF_STRING,
-        MenuId::EXIT as usize,
-        PWSTR(exit.as_mut_ptr()),
-    );
-
-    *context_menu = menu;
 }
 
 unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT, menu: HMENU) {
