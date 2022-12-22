@@ -26,6 +26,15 @@ macro_rules! execute {
     }};
 }
 
+#[macro_export]
+macro_rules! dprint {
+    ($str:expr) => {{
+        unsafe { windows::Win32::System::Diagnostics::Debug::OutputDebugStringW(
+            windows::Win32::Foundation::PWSTR($str.as_mut_ptr())
+        ); }
+    }};
+}
+
 macro_rules! LOWORD {
     ($var:expr) => {{
         ($var as u32) & 0x0000FFFF
