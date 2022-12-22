@@ -39,7 +39,8 @@ const SELECTED_VALUES: [MenuId; 1] = [
 ];
 
 // Main menu
-static mut MENU_TRAY: HMENU = 0;
+static mut MENU_TRAY_ACTIVE: HMENU = 0;
+static mut MENU_TRAY_PAUSED: HMENU = 0;
 static mut MENU_STATE: MenuState = MenuState::new();
 
 fn to_utf16(text: &str) -> Vec<u16> {
@@ -107,7 +108,8 @@ fn main() -> windows::core::Result<()> {
     sz_tip.resize(128, 0);
 
     unsafe {
-        create_menu(&mut MENU_TRAY);
+        create_menu_active(&mut MENU_TRAY_ACTIVE);
+        create_menu_paused(&mut MENU_TRAY_PAUSED);
     }
 
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
@@ -172,8 +174,12 @@ unsafe extern "system" fn wndproc(
             WM_RBUTTONUP => {
                 let mut point: POINT = Default::default();
                 GetCursorPos(&mut point);
-                handle_popup_menu(window, point, MENU_TRAY);
-
+                let menu_handle = if MENU_STATE.is_paused() {
+                    MENU_TRAY_PAUSED
+                } else {
+                    MENU_TRAY_ACTIVE
+                };
+                handle_popup_menu(window, point, menu_handle);
                 0
             }
             _ => DefWindowProcW(window, message, wparam, lparam),
@@ -241,7 +247,7 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::ANTIVIRUS_WEBROOT
                 => {
                     // TODO: Is there a nice way to bind this variable?
-                    let res = flip_menu_state(MENU_TRAY, lo_wparam);
+                    let res = flip_menu_state(MENU_TRAY_ACTIVE, lo_wparam);
                     if let Err(e) = res {
                         let err_string: String = "Can't finish your request. ".to_string() + &e.to_string();
                         MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
@@ -263,23 +269,24 @@ unsafe extern "system" fn wndproc(
             }
         }
         WM_PAINT => {
-            // println!("WM_PAINT");
             ValidateRect(window, std::ptr::null());
             0
         }
         WM_CREATE => 0,
         WM_DESTROY => {
-            // println!("WM_DESTROY");
+            // We are in a process of destruction
             exit_routine()
         }
-        _ => DefWindowProcW(window, message, wparam, lparam),
+        _ => DefWindowProcW(window, message, wparam, lparam), // WM_CLOSE lands here
     }
 }
 
 unsafe fn exit_routine() -> LRESULT {
-    DestroyMenu(MENU_TRAY);
+    // https://learn.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
+    DestroyMenu(MENU_TRAY_ACTIVE);
+    DestroyMenu(MENU_TRAY_PAUSED);
     MENU_STATE.destroy();
-    PostQuitMessage(0);
+    PostQuitMessage(0); // This spawns WM_QUIT which terminates main loop
     0
 }
 
@@ -301,7 +308,36 @@ fn append_menu(menu: HMENU, entry_ids: &[MenuId]) {
     }
 }
 
-unsafe fn create_menu(context_menu: &mut HMENU) {
+unsafe fn create_menu_paused(context_menu: &mut HMENU) {
+    let mut resume = utf16_null!("Resume");
+    let mut about = utf16_null!("About");
+    let mut exit = utf16_null!("Exit");
+
+    let menu: HMENU = CreatePopupMenu();
+
+    AppendMenuW(
+        menu,
+        MF_STRING,
+        MenuId::RESUME as usize,
+        PWSTR(resume.as_mut_ptr()),
+    );
+    AppendMenuW(menu, MF_SEPARATOR, 0, None);
+    AppendMenuW(
+        menu,
+        MF_STRING,
+        MenuId::ABOUT as usize,
+        PWSTR(about.as_mut_ptr()),
+    );
+    AppendMenuW(
+        menu,
+        MF_STRING,
+        MenuId::EXIT as usize,
+        PWSTR(exit.as_mut_ptr()),
+    );
+    *context_menu = menu;
+}
+
+unsafe fn create_menu_active(context_menu: &mut HMENU) {
     let guest_entries: &[MenuId] = &[
         MenuId::GUEST_VIRTUALBOX,
         MenuId::GUEST_VMWARE,
@@ -345,7 +381,6 @@ unsafe fn create_menu(context_menu: &mut HMENU) {
     // ];
 
     let mut pause = utf16_null!("Pause");
-    let _resume = utf16_null!("Resume");
     let mut vm_guest = utf16_null!("VM guest process");
     // let mut debugger = utf16_null!("Debugger");
     // let mut antivirus = utf16_null!("Antivirus");
