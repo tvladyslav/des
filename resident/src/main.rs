@@ -201,7 +201,7 @@ unsafe extern "system" fn wndproc(
                     0
                 }
                 MenuId::GUEST
-                // | MenuId::DEBUGGER
+                | MenuId::DEBUGGER
                 // | MenuId::ANTIVIRUS
                 // | MenuId::FIREWALL
                 // | MenuId::TOOLS
@@ -210,16 +210,18 @@ unsafe extern "system" fn wndproc(
                     MessageBoxV!(0, "Selected non-active menu items.", "Error", MB_OK | MB_ICONERROR);
                     0
                 }
-                // MenuId::DEBUGGER_OLLY
-                // | MenuId::DEBUGGER_WINDBG
-                // | MenuId::DEBUGGER_X64DBG
-                // | MenuId::DEBUGGER_IDA
-                // | MenuId::DEBUGGER_IMMUNITY
                 MenuId::GUEST_VIRTUALBOX
                 | MenuId::GUEST_VMWARE
                 | MenuId::GUEST_PARALLELS
                 | MenuId::GUEST_HYPERV
                 | MenuId::GUEST_VIRTUAL_PC
+                | MenuId::DEBUGGER_OLLY
+                | MenuId::DEBUGGER_WINDBG
+                | MenuId::DEBUGGER_X64DBG
+                | MenuId::DEBUGGER_IDA
+                | MenuId::DEBUGGER_IMMUNITY
+                | MenuId::DEBUGGER_RADARE2
+                | MenuId::DEBUGGER_BINARY_NINJA
                 // | MenuId::FIREWALL_COMODO
                 // | MenuId::FIREWALL_GLASSWIRE
                 // | MenuId::FIREWALL_TINYWALL

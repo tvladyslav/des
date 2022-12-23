@@ -1,4 +1,5 @@
 #[allow(non_camel_case_types)]
+#[allow(clippy::upper_case_acronyms)]
 #[derive(PartialOrd, PartialEq, Ord, Eq, Clone, Copy, FromPrimitive)]
 pub enum MenuId {
     GUEST = 1,
@@ -7,14 +8,14 @@ pub enum MenuId {
     GUEST_PARALLELS,
     GUEST_HYPERV,
     GUEST_VIRTUAL_PC,
-    // DEBUGGER,
-    // DEBUGGER_OLLY,
-    // DEBUGGER_WINDBG,
-    // DEBUGGER_X64DBG,
-    // DEBUGGER_IDA,
-    // DEBUGGER_IMMUNITY,
-    // DEBUGGER_RADARE2,
-    // DEBUGGER_BINARY_NINJA,
+    DEBUGGER,
+    DEBUGGER_OLLY,
+    DEBUGGER_WINDBG,
+    DEBUGGER_X64DBG,
+    DEBUGGER_IDA,
+    DEBUGGER_IMMUNITY,
+    DEBUGGER_RADARE2,
+    DEBUGGER_BINARY_NINJA,
     // ANTIVIRUS,
     // ANTIVIRUS_BITDEFENDER,
     // ANTIVIRUS_NORTON,

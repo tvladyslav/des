@@ -130,31 +130,39 @@ impl <'m> MenuState<'m> {
                 ("vmsrvc.exe", None),   // Virtual Machine Services
             ])
         );
-        // self.m.insert(MenuId::DEBUGGER_OLLY, MenuEntry::new(
-        //     "OllyDBG",
-        //     vec![("ollydbg.exe", None)]
-        // ));
-        // self.m.insert(MenuId::DEBUGGER_WINDBG, MenuEntry::new(
-        //     "WinDBG",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::DEBUGGER_X64DBG, MenuEntry::new(
-        //     "x64dbg",
-        //     // process_name: "x64dbg.exe",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::DEBUGGER_IDA, MenuEntry::new(
-        //     "IDA Pro",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::DEBUGGER_IMMUNITY, MenuEntry::new(
-        //     "Immunity",
-        //     Vec::new()
-        // )
-        // );
+        self.m.insert(MenuId::DEBUGGER_OLLY, MenuEntry::new(
+            "OllyDBG",
+            vec![("ollydbg.exe", None)]
+        ));
+        self.m.insert(MenuId::DEBUGGER_WINDBG, MenuEntry::new(
+            "WinDBG",
+            vec![
+                ("windbg.exe", None),
+                // ("dbgsrv.exe", None),
+                ("usbview.exe", None),
+                ("logviewer.exe", None),
+            ])
+        );
+        self.m.insert(MenuId::DEBUGGER_X64DBG, MenuEntry::new(
+            "x64dbg",
+            vec![("x64dbg.exe", None)]
+        ));
+        self.m.insert(MenuId::DEBUGGER_IDA, MenuEntry::new(
+            "IDA Pro",
+            vec![("ida64.exe", None)]
+        ));
+        self.m.insert(MenuId::DEBUGGER_IMMUNITY, MenuEntry::new(
+            "Immunity",
+            vec![("ImmunityDebugger.exe", None)]
+        ));
+        self.m.insert(MenuId::DEBUGGER_RADARE2, MenuEntry::new(
+            "Radare 2",
+            vec![("iaito.exe", None)]
+        ));
+        self.m.insert(MenuId::DEBUGGER_BINARY_NINJA, MenuEntry::new(
+            "Binary ninja",
+            vec![("binaryninja.exe", None)]
+        ));
         // self.m.insert(MenuId::ANTIVIRUS_AVAST, MenuEntry::new(
         //     "Avast",
         //     Vec::new()
@@ -221,7 +229,6 @@ impl <'m> MenuState<'m> {
         MenuId::TOOLS_PE_TOOLS,
         MenuId::TOOLS_SPYXX,
         CTKResEdit.exe
-        binaryninja.exe
 */
     }
 

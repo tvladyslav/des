@@ -1,9 +1,6 @@
 use std::fs;
 use std::process::Command;
 
-// use crate::dprint;
-// use utf16_lit::utf16_null;
-
 // TODO: should differ for cargo and non-cargo run
 const HOME_FOLDER: &str = "./target/debug/";
 

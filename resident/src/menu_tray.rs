@@ -67,13 +67,15 @@ impl MenuTray {
             MenuId::GUEST_VIRTUAL_PC,
         ];
 
-        // let debugger_entries: &[MenuId] = &[
-        //     MenuId::DEBUGGER_OLLY,
-        //     MenuId::DEBUGGER_WINDBG,
-        //     MenuId::DEBUGGER_X64DBG,
-        //     MenuId::DEBUGGER_IDA,
-        //     MenuId::DEBUGGER_IMMUNITY,
-        // ];
+        let debugger_entries: &[MenuId] = &[
+            MenuId::DEBUGGER_OLLY,
+            MenuId::DEBUGGER_WINDBG,
+            MenuId::DEBUGGER_X64DBG,
+            MenuId::DEBUGGER_IDA,
+            MenuId::DEBUGGER_IMMUNITY,
+            MenuId::DEBUGGER_RADARE2,
+            MenuId::DEBUGGER_BINARY_NINJA,
+        ];
 
         // let antivirus_entries: &[MenuId] = &[
         //     MenuId::ANTIVIRUS_AVAST,
@@ -103,15 +105,15 @@ impl MenuTray {
 
         let mut pause = utf16_null!("Pause");
         let mut vm_guest = utf16_null!("VM guest process");
-        // let mut debugger = utf16_null!("Debugger");
+        let mut debugger = utf16_null!("Debugger");
         // let mut antivirus = utf16_null!("Antivirus");
         // let mut firewall = utf16_null!("Firewall");
 
         let guest_submenu: HMENU = CreatePopupMenu();
         append_menu(guest_submenu, menu_state, guest_entries);
 
-        // let debugger_submenu: HMENU = CreatePopupMenu();
-        // append_menu(debugger_submenu, debugger_entries);
+        let debugger_submenu: HMENU = CreatePopupMenu();
+        append_menu(debugger_submenu, menu_state, debugger_entries);
 
         // let antivirus_submenu: HMENU = CreatePopupMenu();
         // append_menu(antivirus_submenu, antivirus_entries);
@@ -136,20 +138,20 @@ impl MenuTray {
             guest_submenu as usize,
             PWSTR(vm_guest.as_mut_ptr()),
         );
+        AppendMenuW(
+            self.menu,
+            MF_STRING | MF_POPUP,
+            debugger_submenu as usize,
+            PWSTR(debugger.as_mut_ptr()),
+        );
         // AppendMenuW(
-        //     menu,
-        //     MF_STRING | MF_POPUP,
-        //     debugger_submenu as usize,
-        //     PWSTR(debugger.as_mut_ptr()),
-        // );
-        // AppendMenuW(
-        //     menu,
+        //     self.menu,
         //     MF_STRING | MF_POPUP,
         //     antivirus_submenu as usize,
         //     PWSTR(antivirus.as_mut_ptr()),
         // );
         // AppendMenuW(
-        //     menu,
+        //     self.menu,
         //     MF_STRING | MF_POPUP,
         //     firewall_submenu as usize,
         //     PWSTR(firewall.as_mut_ptr()),
