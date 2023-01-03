@@ -204,7 +204,7 @@ unsafe extern "system" fn wndproc(
                 | MenuId::DEBUGGER
                 // | MenuId::ANTIVIRUS
                 // | MenuId::FIREWALL
-                // | MenuId::TOOLS
+                | MenuId::TOOLS
                 => {
                     // This should never happen. Assert?
                     MessageBoxV!(0, "Selected non-active menu items.", "Error", MB_OK | MB_ICONERROR);
@@ -242,6 +242,17 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::ANTIVIRUS_SOPHOS
                 // | MenuId::ANTIVIRUS_TREND_MICRO
                 // | MenuId::ANTIVIRUS_WEBROOT
+                | MenuId::TOOLS_PEID
+                | MenuId::TOOLS_RESOURCE_HACKER
+                | MenuId::TOOLS_DIE
+                | MenuId::TOOLS_DEBUG_VIEW
+                | MenuId::TOOLS_PROCESS_MONITOR
+                | MenuId::TOOLS_PROCESS_EXPLORER
+                | MenuId::TOOLS_TCPVIEW
+                | MenuId::TOOLS_WIRESHARK
+                | MenuId::TOOLS_PE_TOOLS
+                | MenuId::TOOLS_SPYXX
+                | MenuId::TOOLS_CTK_RES_EDIT
                 => {
                     // TODO: Is there a nice way to bind this variable?
                     let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);

@@ -90,24 +90,26 @@ impl MenuTray {
         //     MenuId::FIREWALL_TINYWALL,
         // ];
 
-        // let tools_entries: &[MenuId] = &[
-        //     MenuId::TOOLS_PEID,
-        //     MenuId::TOOLS_RESOURCE_HACKER,
-        //     MenuId::TOOLS_DIE,
-        //     MenuId::TOOLS_BYTECODE_VIEWER,
-        //     MenuId::TOOLS_PROCESS_MONITOR,
-        //     MenuId::TOOLS_PROCESS_EXPLORER,
-        //     MenuId::TOOLS_TCPVIEW,
-        //     MenuId::TOOLS_WIRESHARK,
-        //     MenuId::TOOLS_PE_TOOLS,
-        //     MenuId::TOOLS_SPYXX,
-        // ];
+        let tools_entries: &[MenuId] = &[
+            MenuId::TOOLS_PEID,
+            MenuId::TOOLS_RESOURCE_HACKER,
+            MenuId::TOOLS_DIE,
+            MenuId::TOOLS_DEBUG_VIEW,
+            MenuId::TOOLS_PROCESS_MONITOR,
+            MenuId::TOOLS_PROCESS_EXPLORER,
+            MenuId::TOOLS_TCPVIEW,
+            MenuId::TOOLS_WIRESHARK,
+            MenuId::TOOLS_PE_TOOLS,
+            MenuId::TOOLS_SPYXX,
+            MenuId::TOOLS_CTK_RES_EDIT,
+        ];
 
         let mut pause = utf16_null!("Pause");
         let mut vm_guest = utf16_null!("VM guest process");
         let mut debugger = utf16_null!("Debugger");
         // let mut antivirus = utf16_null!("Antivirus");
         // let mut firewall = utf16_null!("Firewall");
+        let mut tools = utf16_null!("Tools");
 
         let guest_submenu: HMENU = CreatePopupMenu();
         append_menu(guest_submenu, menu_state, guest_entries);
@@ -121,8 +123,8 @@ impl MenuTray {
         // let firewall_submenu: HMENU = CreatePopupMenu();
         // append_menu(firewall_submenu, firewall_entries);
 
-        // let tools_submenu: HMENU = CreatePopupMenu();
-        // append_menu(tools_submenu, tools_entries);
+        let tools_submenu: HMENU = CreatePopupMenu();
+        append_menu(tools_submenu, menu_state, tools_entries);
 
         self.menu = CreatePopupMenu();
         AppendMenuW(
@@ -156,6 +158,12 @@ impl MenuTray {
         //     firewall_submenu as usize,
         //     PWSTR(firewall.as_mut_ptr()),
         // );
+        AppendMenuW(
+            self.menu,
+            MF_STRING | MF_POPUP,
+            tools_submenu as usize,
+            PWSTR(tools.as_mut_ptr()),
+        );
         self.append_last_entries();
     }
 

@@ -202,34 +202,72 @@ impl <'m> MenuState<'m> {
         //     Vec::new()
         // )
         // );
-        // self.m.insert(MenuId::TOOLS_PEID, MenuEntry::new(
-        //     "PEiD",
-        //     vec![("PEiD.exe", None)]
-        // ));
-        // self.m.insert(MenuId::TOOLS_RESOURCE_HACKER, MenuEntry::new(
-        //     "Resource hacker",
-        //     vec![("ResourceHacker.exe", None)]
-        // ));
-        // self.m.insert(MenuId::TOOLS_DIE, MenuEntry::new(
-        //     "Detect It Easy",
-        //     vec![
-        //         ("die.exe", None),
-        //         ("diec.exe", None),
-        //         ("diel.exe", None)
-        //     ]
-        // ));
-/*
+        self.m.insert(MenuId::TOOLS_PEID, MenuEntry::new(
+            "PEiD",
+            vec![("PEiD.exe", None)]
+        ));
+        self.m.insert(MenuId::TOOLS_RESOURCE_HACKER, MenuEntry::new(
+            "Resource hacker",
+            vec![("ResourceHacker.exe", None)]
+        ));
+        self.m.insert(MenuId::TOOLS_DIE, MenuEntry::new(
+            "Detect It Easy",
+            vec![
+                ("die.exe", None),
+                ("diec.exe", None),
+                ("diel.exe", None)
+            ]
+        ));
+        self.m.insert(MenuId::TOOLS_DEBUG_VIEW, MenuEntry::new(
+            "Debug View",
+            vec![
+                ("Dbgview.exe", None),
+                ("dbgview64.exe", None)
+            ]
+        ));
+        self.m.insert(MenuId::TOOLS_PROCESS_MONITOR, MenuEntry::new(
+            "Process Monitor",
+            vec![
+                ("Procmon.exe", None),
+                ("Procmon64.exe", None)
+            ]
+        ));
+        self.m.insert(MenuId::TOOLS_PROCESS_EXPLORER, MenuEntry::new(
+            "Process Explorer",
+            vec![
+                ("procexp.exe", None),
+                ("procexp64.exe", None)
+            ]
+        ));
+        self.m.insert(MenuId::TOOLS_TCPVIEW, MenuEntry::new(
+            "TCP View",
+            vec![
+                ("tcpvcon.exe", None),
+                ("tcpvcon64.exe", None),
+                ("tcpview.exe", None),
+                ("tcpview64.exe", None)
+            ]
+        ));
+        self.m.insert(MenuId::TOOLS_WIRESHARK, MenuEntry::new(
+            "Wireshark",
+            vec![
+                ("dumpcap.exe", None),
+                ("Wireshark.exe", None)
+            ]
+        ));
+        self.m.insert(MenuId::TOOLS_PE_TOOLS, MenuEntry::new(
+            "PE Tools",
+            vec![("PETools.exe", None)]
+        ));
+        self.m.insert(MenuId::TOOLS_SPYXX, MenuEntry::new(
+            "Spy++",
+            vec![("spyxx.exe", None)]
+        ));
 
-
-        MenuId::TOOLS_BYTECODE_VIEWER,
-        MenuId::TOOLS_PROCESS_MONITOR,
-        MenuId::TOOLS_PROCESS_EXPLORER, procexp.exe procexp64.exe procexp64a.exe
-        MenuId::TOOLS_TCPVIEW,
-        MenuId::TOOLS_WIRESHARK,
-        MenuId::TOOLS_PE_TOOLS,
-        MenuId::TOOLS_SPYXX,
-        CTKResEdit.exe
-*/
+        self.m.insert(MenuId::TOOLS_CTK_RES_EDIT, MenuEntry::new(
+            "CTK Res Edit",
+            vec![("CTKResEdit.exe", None)]
+        ));
     }
 
 }
