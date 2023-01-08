@@ -202,7 +202,7 @@ unsafe extern "system" fn wndproc(
                 }
                 MenuId::GUEST
                 | MenuId::DEBUGGER
-                // | MenuId::ANTIVIRUS
+                | MenuId::ANTIVIRUS
                 // | MenuId::FIREWALL
                 | MenuId::TOOLS
                 => {
@@ -227,16 +227,18 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::FIREWALL_TINYWALL
                 // | MenuId::FIREWALL_ZONEALARM
                 // | MenuId::ANTIVIRUS_AVAST
-                // | MenuId::ANTIVIRUS_AVIRA
+                | MenuId::ANTIVIRUS_AVIRA
                 // | MenuId::ANTIVIRUS_BITDEFENDER
                 // | MenuId::ANTIVIRUS_DRWEB
-                // | MenuId::ANTIVIRUS_ESCAN
                 // | MenuId::ANTIVIRUS_ESET_NOD32
+                | MenuId::ANTIVIRUS_ESCAN
+                | MenuId::ANTIVIRUS_FORTINET
                 // | MenuId::ANTIVIRUS_FSECURE
-                // | MenuId::ANTIVIRUS_GDATA
+                | MenuId::ANTIVIRUS_GDATA
+                | MenuId::ANTIVIRUS_K7
                 // | MenuId::ANTIVIRUS_KASPERSKY
                 // | MenuId::ANTIVIRUS_MALWAREBYTES
-                // | MenuId::ANTIVIRUS_MCAFEE
+                | MenuId::ANTIVIRUS_MCAFEE
                 // | MenuId::ANTIVIRUS_NORTON
                 // | MenuId::ANTIVIRUS_PANDA
                 // | MenuId::ANTIVIRUS_SOPHOS
@@ -253,6 +255,7 @@ unsafe extern "system" fn wndproc(
                 | MenuId::TOOLS_PE_TOOLS
                 | MenuId::TOOLS_SPYXX
                 | MenuId::TOOLS_CTK_RES_EDIT
+                | MenuId::TOOLS_XN_RES_EDITOR
                 => {
                     // TODO: Is there a nice way to bind this variable?
                     let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);
@@ -268,10 +271,6 @@ unsafe extern "system" fn wndproc(
                 }
                 MenuId::EXIT => {
                     SendMessageW(window, WM_CLOSE, 0, 0);
-                    0
-                }
-                _ => {
-                    MessageBoxV!(window, &wparam.to_string(), "Unknown command", MB_OK);
                     0
                 }
             }

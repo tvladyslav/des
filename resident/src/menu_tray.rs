@@ -77,11 +77,14 @@ impl MenuTray {
             MenuId::DEBUGGER_BINARY_NINJA,
         ];
 
-        // let antivirus_entries: &[MenuId] = &[
-        //     MenuId::ANTIVIRUS_AVAST,
-        //     MenuId::ANTIVIRUS_AVIRA,
-        //     MenuId::ANTIVIRUS_ESCAN,
-        // ];
+        let antivirus_entries: &[MenuId] = &[
+            MenuId::ANTIVIRUS_AVIRA,
+            MenuId::ANTIVIRUS_ESCAN,
+            MenuId::ANTIVIRUS_FORTINET,
+            MenuId::ANTIVIRUS_GDATA,
+            MenuId::ANTIVIRUS_K7,
+            MenuId::ANTIVIRUS_MCAFEE,
+        ];
 
         // let firewall_entries: &[MenuId] = &[
         //     MenuId::FIREWALL_ZONEALARM,
@@ -102,12 +105,13 @@ impl MenuTray {
             MenuId::TOOLS_PE_TOOLS,
             MenuId::TOOLS_SPYXX,
             MenuId::TOOLS_CTK_RES_EDIT,
+            MenuId::TOOLS_XN_RES_EDITOR,
         ];
 
         let mut pause = utf16_null!("Pause");
         let mut vm_guest = utf16_null!("VM guest process");
         let mut debugger = utf16_null!("Debugger");
-        // let mut antivirus = utf16_null!("Antivirus");
+        let mut antivirus = utf16_null!("Antivirus");
         // let mut firewall = utf16_null!("Firewall");
         let mut tools = utf16_null!("Tools");
 
@@ -117,8 +121,8 @@ impl MenuTray {
         let debugger_submenu: HMENU = CreatePopupMenu();
         append_menu(debugger_submenu, menu_state, debugger_entries);
 
-        // let antivirus_submenu: HMENU = CreatePopupMenu();
-        // append_menu(antivirus_submenu, antivirus_entries);
+        let antivirus_submenu: HMENU = CreatePopupMenu();
+        append_menu(antivirus_submenu, menu_state, antivirus_entries);
 
         // let firewall_submenu: HMENU = CreatePopupMenu();
         // append_menu(firewall_submenu, firewall_entries);
@@ -146,12 +150,12 @@ impl MenuTray {
             debugger_submenu as usize,
             PWSTR(debugger.as_mut_ptr()),
         );
-        // AppendMenuW(
-        //     self.menu,
-        //     MF_STRING | MF_POPUP,
-        //     antivirus_submenu as usize,
-        //     PWSTR(antivirus.as_mut_ptr()),
-        // );
+        AppendMenuW(
+            self.menu,
+            MF_STRING | MF_POPUP,
+            antivirus_submenu as usize,
+            PWSTR(antivirus.as_mut_ptr()),
+        );
         // AppendMenuW(
         //     self.menu,
         //     MF_STRING | MF_POPUP,

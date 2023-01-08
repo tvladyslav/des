@@ -163,25 +163,114 @@ impl <'m> MenuState<'m> {
             "Binary ninja",
             vec![("binaryninja.exe", None)]
         ));
-        // self.m.insert(MenuId::ANTIVIRUS_AVAST, MenuEntry::new(
-        //     "Avast",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::ANTIVIRUS_AVIRA, MenuEntry::new(
-        //     "Avira",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::ANTIVIRUS_ESCAN, MenuEntry::new(
-        //     "eScan",
-        //     vec![
-        //         ("avpmapp.exe", None),  // eScan File Monitoring System
-        //         ("econceal.exe", None), // eConceal Service
-        //         ("escanmon.exe", None), // eScan Monitoring Tray
-        //         ("escanpro.exe", None), // eScan Protection Center
-        //     ])
-        // );
+        self.m.insert(MenuId::ANTIVIRUS_AVIRA, MenuEntry::new(
+            "Avira",
+            vec![
+                ("Avira.OptimizerHost.exe", None), // Avira Optimizer Host
+                ("Avira Safe Shopping.exe", None), // Avira Safe Shopping add-on for browsers
+                ("Avira.ServiceHost.exe", None),   // Avira Service Host
+                ("Avira.SoftwareUpdater.ServiceHost.exe", None), // Avira Updater Service Host
+                ("Avira.Spotlight.Service.exe", None),
+                ("Avira.Systray.exe", None),       // Avira Launcher
+                ("Avira.SystrayStartTrigger.exe", None), // Avira System Tray Service Start Trigger
+                ("Avira.VpnService.exe", None),    // Avira Phantom VPN
+                ("Avira.WebAppHost.exe", None),    // Avira Phantom VPN or WebAppHost
+                ("ProtectedService.exe", None),    // Avira Protected Antimalware Service
+                ("avscan.exe", None),              // Avira OnDemand File Scanner
+                ("toastnotifier.exe", None),       // AVToastNotifier
+                ("avupdate.exe", None),            // Updater for Avira products
+                ("ipmgui.exe", None),              // In Product Messaging Application
+                ("avgnt.exe", None),               // Avira AntiVir Guard Notification Tray
+            ])
+        );
+        self.m.insert(MenuId::ANTIVIRUS_ESCAN, MenuEntry::new(
+            "eScan",
+            vec![
+                ("avpmapp.exe", None),  // eScan File Monitoring System
+                ("econceal.exe", None), // eConceal Service
+                ("escanmon.exe", None), // eScan Monitoring Tray
+                ("escanpro.exe", None), // eScan Protection Center
+                ("avpMWrap.exe", None), // eScan Antivirus Suite
+                ("eScanRAD.exe", None), // eScan Remote Administration
+                ("MAILDISP.EXE", None), // eScan Mail Scanner Component
+                ("traycser.exe", None), // eScan Client Updater
+                ("trayeser.exe", None), // eScan Management Console
+                ("TRAYICOC.EXE", None), // eScan Client updater
+                ("TRAYICOS.EXE", None), // eScan Server updater
+                ("traysser.exe", None), // Service Module for eScan Server updater
+                ("consctl.exe", None),  // eScan Application Blocker
+                ("mwagent.exe", None),  // eScan Agent Application or MicroWorld Agent
+            ])
+        );
+        self.m.insert(MenuId::ANTIVIRUS_FORTINET, MenuEntry::new(
+            "Fortinet",
+            vec![
+                // https://docs.fortinet.com/document/forticlient/7.0.7/administration-guide/209271/forticlient-windows-processes
+                ("FCVbltScan.exe", None),  // FortiClient Vulnerability Scan Daemon
+                ("FortiAvatar.exe", None), // FortiClient User Avatar Agent
+                ("FortiClient.exe", None), // FortiClient Console
+                ("fcappdb.exe", None),     // FortiClient Application Database Service
+                ("fcaptmon.exe", None),    // FortiClient Sandbox Agent
+                ("FCDBLog.exe", None),     // FortiClient Logging Daemon
+                ("FCHelper64.exe", None),  // FortiClient System Helper
+                ("fmon.exe", None),        // FortiClient Realtime AntiVirus Protection
+                ("fortiae.exe", None),     // FortiClient Anti-Exploit
+                ("FortiESNAC.exe", None),  // FortiClient Network Access Control
+                ("fortifws.exe", None),    // FortiClient Firewall Service
+                ("FortiProxy.exe", None),  // FortiClient Proxy Service
+                ("FortiScand.exe", None),  // FortiClient Scan Server
+                ("FortiSettings.exe", None), // FortiClient Settings Service
+                ("FortiSSLVPNdaemon.exe", None), // FortiClient SSLVPN daemon
+                ("FortiTray.exe", None),   // FortiClient System Tray Controller
+                ("FortiUSBmon.exe", None), // FortiClient USB monitor protection
+                ("FortiWF.exe", None),     // FortiClient Web Filter Service
+            ])
+        );
+        self.m.insert(MenuId::ANTIVIRUS_GDATA, MenuEntry::new(
+            "G Data",
+            vec![
+                ("AVK.exe", None),        // G Data AntiVirus UI
+                ("AVKWCtlx64.exe", None), // G Data Filesystem Monitor Service
+                ("GdBgInx64.exe", None),  // G Data AntiVirus Bankguard
+                ("AVKProxy.exe", None),   // G Data AntiVirus Proxy Service
+                ("GDScan.exe", None),     // G Data AntiVirus Scan Server
+                ("AVKService.exe", None), // G Data InternetSecurity Scheduler Service
+                ("AVKTray.exe", None),    // G DATA InternetSecurity Tray Application
+                ("GDSC.exe", None),       // G DATA SecurityCenter
+                ("GDKBFltExe32.exe", None),
+            ])
+        );
+        self.m.insert(MenuId::ANTIVIRUS_K7, MenuEntry::new(
+            "K7",
+            vec![
+                ("K7RTScan.exe", None),    // K7 RealTime AntiVirus Services
+                ("K7FWSrvc.exe", None),    // K7 Firewall Services
+                ("K7PSSrvc.exe", None),    // K7 Privacy Manager
+                ("K7EmlPxy.exe", None),    // K7 EMail Proxy Server
+                ("K7TSecurity.exe", None), // K7 User Agent
+                ("K7AVScan.exe", None),    // K7 AntiVirus Scanner Loader
+                ("K7CrvSvc.exe", None),    // K7 Carnivore Service
+                ("K7SysMon.exe", None),    // K7 System Monitor
+                ("K7TSMain.exe", None),    // K7 Total Security
+                ("K7TSMngr.exe", None),    // K7 TotalSecurity Service Manager
+            ])
+        );
+        self.m.insert(MenuId::ANTIVIRUS_MCAFEE, MenuEntry::new(
+            "McAfee",
+            vec![
+                ("mcapexe.exe", None),  // McAfee Access Protection
+                ("mcshield.exe", None), // Part of McAfee real-time protection
+                ("McUICnt.exe", None),  // McAfee HTML User Interface (UI) Container
+                ("MfeAVSvc.exe", None), // McAfee Cloud AV
+                ("mfemms.exe", None),   // McAfee Management Service
+                ("mfevtps.exe", None),  // McAfee Process Validation Service
+                ("MMSSHOST.exe", None), // McAfee Management Service Host
+                ("QcShm.exe", None),    // McAfee QuickClean
+                ("PEFService.exe", None),          // Intel Security PEF Service
+                ("ModuleCoreService.exe", None),   // McAfee Module Core Service
+                ("ProtectedModuleHost.exe", None), // McAfee Protected Module Host
+            ])
+        );
         // self.m.insert(MenuId::FIREWALL_ZONEALARM, MenuEntry::new(
         //     "ZoneAlarm",
         //     Vec::new()
@@ -263,10 +352,13 @@ impl <'m> MenuState<'m> {
             "Spy++",
             vec![("spyxx.exe", None)]
         ));
-
         self.m.insert(MenuId::TOOLS_CTK_RES_EDIT, MenuEntry::new(
             "CTK Res Edit",
             vec![("CTKResEdit.exe", None)]
+        ));
+        self.m.insert(MenuId::TOOLS_XN_RES_EDITOR, MenuEntry::new(
+            "XN Resource Editor",
+            vec![("XNResourceEditor.exe", None)]
         ));
     }
 
