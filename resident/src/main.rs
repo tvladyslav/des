@@ -203,7 +203,7 @@ unsafe extern "system" fn wndproc(
                 MenuId::GUEST
                 | MenuId::DEBUGGER
                 | MenuId::ANTIVIRUS
-                // | MenuId::FIREWALL
+                | MenuId::FIREWALL
                 | MenuId::TOOLS
                 => {
                     // This should never happen. Assert?
@@ -222,10 +222,6 @@ unsafe extern "system" fn wndproc(
                 | MenuId::DEBUGGER_IMMUNITY
                 | MenuId::DEBUGGER_RADARE2
                 | MenuId::DEBUGGER_BINARY_NINJA
-                // | MenuId::FIREWALL_COMODO
-                // | MenuId::FIREWALL_GLASSWIRE
-                // | MenuId::FIREWALL_TINYWALL
-                // | MenuId::FIREWALL_ZONEALARM
                 // | MenuId::ANTIVIRUS_AVAST
                 | MenuId::ANTIVIRUS_AVIRA
                 // | MenuId::ANTIVIRUS_BITDEFENDER
@@ -244,6 +240,10 @@ unsafe extern "system" fn wndproc(
                 // | MenuId::ANTIVIRUS_SOPHOS
                 // | MenuId::ANTIVIRUS_TREND_MICRO
                 // | MenuId::ANTIVIRUS_WEBROOT
+                | MenuId::FIREWALL_COMODO
+                | MenuId::FIREWALL_GLASSWIRE
+                | MenuId::FIREWALL_TINYWALL
+                | MenuId::FIREWALL_ZONEALARM
                 | MenuId::TOOLS_PEID
                 | MenuId::TOOLS_RESOURCE_HACKER
                 | MenuId::TOOLS_DIE

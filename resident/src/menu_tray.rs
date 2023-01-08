@@ -86,12 +86,12 @@ impl MenuTray {
             MenuId::ANTIVIRUS_MCAFEE,
         ];
 
-        // let firewall_entries: &[MenuId] = &[
-        //     MenuId::FIREWALL_ZONEALARM,
-        //     MenuId::FIREWALL_GLASSWIRE,
-        //     MenuId::FIREWALL_COMODO,
-        //     MenuId::FIREWALL_TINYWALL,
-        // ];
+        let firewall_entries: &[MenuId] = &[
+                MenuId::FIREWALL_COMODO,
+                MenuId::FIREWALL_GLASSWIRE,
+                MenuId::FIREWALL_TINYWALL,
+                MenuId::FIREWALL_ZONEALARM,
+        ];
 
         let tools_entries: &[MenuId] = &[
             MenuId::TOOLS_PEID,
@@ -112,7 +112,7 @@ impl MenuTray {
         let mut vm_guest = utf16_null!("VM guest process");
         let mut debugger = utf16_null!("Debugger");
         let mut antivirus = utf16_null!("Antivirus");
-        // let mut firewall = utf16_null!("Firewall");
+        let mut firewall = utf16_null!("Firewall");
         let mut tools = utf16_null!("Tools");
 
         let guest_submenu: HMENU = CreatePopupMenu();
@@ -124,8 +124,8 @@ impl MenuTray {
         let antivirus_submenu: HMENU = CreatePopupMenu();
         append_menu(antivirus_submenu, menu_state, antivirus_entries);
 
-        // let firewall_submenu: HMENU = CreatePopupMenu();
-        // append_menu(firewall_submenu, firewall_entries);
+        let firewall_submenu: HMENU = CreatePopupMenu();
+        append_menu(firewall_submenu, menu_state, firewall_entries);
 
         let tools_submenu: HMENU = CreatePopupMenu();
         append_menu(tools_submenu, menu_state, tools_entries);
@@ -156,12 +156,12 @@ impl MenuTray {
             antivirus_submenu as usize,
             PWSTR(antivirus.as_mut_ptr()),
         );
-        // AppendMenuW(
-        //     self.menu,
-        //     MF_STRING | MF_POPUP,
-        //     firewall_submenu as usize,
-        //     PWSTR(firewall.as_mut_ptr()),
-        // );
+        AppendMenuW(
+            self.menu,
+            MF_STRING | MF_POPUP,
+            firewall_submenu as usize,
+            PWSTR(firewall.as_mut_ptr()),
+        );
         AppendMenuW(
             self.menu,
             MF_STRING | MF_POPUP,

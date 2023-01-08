@@ -266,31 +266,55 @@ impl <'m> MenuState<'m> {
                 ("mfevtps.exe", None),  // McAfee Process Validation Service
                 ("MMSSHOST.exe", None), // McAfee Management Service Host
                 ("QcShm.exe", None),    // McAfee QuickClean
+                ("cpd.exe", None),      // McAfee firewall
                 ("PEFService.exe", None),          // Intel Security PEF Service
                 ("ModuleCoreService.exe", None),   // McAfee Module Core Service
                 ("ProtectedModuleHost.exe", None), // McAfee Protected Module Host
             ])
         );
-        // self.m.insert(MenuId::FIREWALL_ZONEALARM, MenuEntry::new(
-        //     "ZoneAlarm",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::FIREWALL_GLASSWIRE, MenuEntry::new(
-        //     "GlassWire",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::FIREWALL_COMODO, MenuEntry::new(
-        //     "Comodo",
-        //     Vec::new()
-        // )
-        // );
-        // self.m.insert(MenuId::FIREWALL_TINYWALL, MenuEntry::new(
-        //     "TinyWall",
-        //     Vec::new()
-        // )
-        // );
+        self.m.insert(MenuId::FIREWALL_COMODO, MenuEntry::new(
+            "Comodo",
+            vec![
+                ("cmdagent.exe", None), // COMODO Internet Security Agent
+                ("cavwp.exe", None),    // COMODO Anti-virus Windows Process
+                ("vkise.exe", None),    // COMODO Internet Security Essentials
+                ("cis.exe", None),      // COMODO Internet Security
+                ("cmdvirth.exe", None), // COMODO Virtual Service Manager
+                ("CPF.exe", None),      // COMODO Personal firewall
+                ("cpf9x206.exe", None),
+                ("cpfnt206.exe", None),
+            ])
+        );
+        self.m.insert(MenuId::FIREWALL_GLASSWIRE, MenuEntry::new(
+            "GlassWire",
+            vec![
+                ("GlassWire.exe", None), // GlassWire firewall
+                ("GWCtlSrv.exe", None),  // GlassWire Control Service
+                ("GWIdlMon.exe", None),  // GlassWire Computer Idle Monitor
+            ])
+        );
+        self.m.insert(MenuId::FIREWALL_TINYWALL, MenuEntry::new(
+            "TinyWall",
+            vec![("TinyWall.exe", None)]
+        ));
+        self.m.insert(MenuId::FIREWALL_ZONEALARM, MenuEntry::new(
+            "ZoneAlarm",
+            vec![
+                ("ZAAR.exe", None),       //  ZoneAlarm Anti-Ransomware
+                ("IswSvc.exe", None),     // ZoneAlarm Browser Security
+                ("ForceField.exe", None), // ZoneAlarm Browser Security
+                ("zatray.exe", None),     // ZoneAlarm System Tray
+                ("Upgrade.exe", None),    // ZoneAlarm Windows upgrader
+                ("zlclient.exe", None),   // ZoneAlarm Client
+                ("zatutor.exe", None),    // ZoneAlarm Pro Tutor
+                ("zapro.exe", None),      // ZoneAlarm Pro
+                ("EFRService.exe", None), // Check Point Endpoint Forensic Recorder service
+                ("AkSA.exe", None),       // ZoneAlarm AntiKeylogger
+                ("zonealarm.exe", None),  // ZoneAlarm Stub Program for ZAPro
+                // ("zonalm2601.exe", None), // Ancient ZoneAlarm name
+                ("ZaPrivacyService.exe", None),  // ZoneAlarm Firewall
+            ])
+        );
         self.m.insert(MenuId::TOOLS_PEID, MenuEntry::new(
             "PEiD",
             vec![("PEiD.exe", None)]
