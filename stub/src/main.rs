@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 
-use utf16_lit::utf16_null;
 use windows::{
+    w,
     // core::*,
     Win32::Foundation::*,
     Win32::System::LibraryLoader::GetModuleHandleW,
@@ -16,18 +16,17 @@ fn main() -> windows::core::Result<()> {
     // TODO: some argument key
     if std::env::args().count() == 1 {
         execute!(MessageBoxW(
-            0,
-            PWSTR(utf16_null!("Don't run this application manually.").as_mut_ptr()),
-            PWSTR(utf16_null!("Error").as_mut_ptr()),
+            HWND(0),
+            w!("Don't run this application manually."),
+            w!("Error"),
             MB_OK | MB_ICONERROR
         ))?;
         return Ok(());
     }
 
-    let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
-
-    let mut class_name = utf16_null!("stub_class");
-    let cursor: HCURSOR = execute!(LoadCursorW(None, IDC_ARROW))?;
+    let module_handle: HINSTANCE = unsafe {GetModuleHandleW(None) }?;
+    let cursor: HCURSOR = unsafe {LoadCursorW(None, IDC_ARROW) }?;
+    let class_name = w!("stub_class");
 
     let win_class = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
@@ -37,7 +36,7 @@ fn main() -> windows::core::Result<()> {
         cbWndExtra: 0,
         hInstance: module_handle,
         hCursor: cursor,
-        lpszClassName: PWSTR(class_name.as_mut_ptr() as _),
+        lpszClassName: class_name,
 
         ..Default::default()
     };
@@ -45,12 +44,10 @@ fn main() -> windows::core::Result<()> {
     let atom: u16 = execute!(RegisterClassExW(&win_class))?;
     assert!(atom != 0);
 
-    let mut window_name = utf16_null!("The window");
-
     let _win_handle: HWND = execute!(CreateWindowExW(
         Default::default(),
-        PWSTR(class_name.as_mut_ptr()),
-        PWSTR(window_name.as_mut_ptr()),
+        class_name,
+        w!("The window"),
         WS_DISABLED,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -59,7 +56,7 @@ fn main() -> windows::core::Result<()> {
         None,
         None,
         module_handle,
-        std::ptr::null_mut(),
+        None,
     ))?;
 
     let mut message = MSG::default();

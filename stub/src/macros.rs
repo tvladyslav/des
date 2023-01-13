@@ -16,26 +16,12 @@
 /// ```
 macro_rules! execute {
     ($func:expr) => {{
-        unsafe { SetLastError(0) };
+        unsafe { SetLastError(ERROR_SUCCESS) };
         let result = unsafe { $func };
         let err: windows::core::Error = windows::core::Error::from_win32();
         match err.info() {
             Option::Some(_) => Err(err),
             Option::None => Ok(result),
         }
-    }};
-}
-
-#[allow(unused_macros)]
-macro_rules! LOWORD {
-    ($var:expr) => {{
-        ($var as u32) & 0x0000FFFF
-    }};
-}
-
-#[allow(unused_variables)]
-macro_rules! _HIWORD {
-    ($var:expr) => {{
-        ($var as u32) & 0xFFFF0000
     }};
 }

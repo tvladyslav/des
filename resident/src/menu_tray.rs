@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
-use utf16_lit::utf16_null;
-use windows::Win32::Foundation::PWSTR;
+use windows::w;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::menu_ids::MenuId;
@@ -20,45 +19,48 @@ impl Deref for MenuTray {
 
 impl MenuTray {
     pub const fn new() -> MenuTray {
-        MenuTray { menu: -1 }
+        // TODO: try is_invalid
+        MenuTray { menu: HMENU(-1) }
+    }
+
+    pub fn is_initialized(&self) -> bool {
+        self.menu.0 != -1
     }
 
     unsafe fn append_last_entries(&mut self) {
-        assert!(self.menu != -1);
-        let mut about = utf16_null!("About");
-        let mut exit = utf16_null!("Exit");
+        assert!(self.is_initialized());
         AppendMenuW(self.menu, MF_SEPARATOR, 0, None);
         AppendMenuW(
             self.menu,
             MF_STRING,
             MenuId::ABOUT as usize,
-            PWSTR(about.as_mut_ptr()),
+            w!("About"),
         );
         AppendMenuW(
             self.menu,
             MF_STRING,
             MenuId::EXIT as usize,
-            PWSTR(exit.as_mut_ptr()),
+            w!("Exit"),
         );
     }
 
-    pub unsafe fn create_menu_paused(&mut self) {
-        assert!(self.menu == -1);
-        let mut resume = utf16_null!("Resume");
+    pub unsafe fn create_menu_paused(&mut self) -> windows::core::Result<()> {
+        assert!(!self.is_initialized());
 
-        self.menu = CreatePopupMenu();
+        self.menu = CreatePopupMenu()?;
 
         AppendMenuW(
             self.menu,
             MF_STRING,
             MenuId::RESUME as usize,
-            PWSTR(resume.as_mut_ptr()),
+            w!("Resume"),
         );
         self.append_last_entries();
+        Ok(())
     }
 
-    pub unsafe fn create_menu_active(&mut self, menu_state: &MenuState) {
-        assert!(self.menu == -1);
+    pub unsafe fn create_menu_active(&mut self, menu_state: &MenuState) -> windows::core::Result<()> {
+        assert!(!self.is_initialized());
         let guest_entries: &[MenuId] = &[
             MenuId::GUEST_VIRTUALBOX,
             MenuId::GUEST_VMWARE,
@@ -108,67 +110,61 @@ impl MenuTray {
             MenuId::TOOLS_XN_RES_EDITOR,
         ];
 
-        let mut pause = utf16_null!("Pause");
-        let mut vm_guest = utf16_null!("VM guest process");
-        let mut debugger = utf16_null!("Debugger");
-        let mut antivirus = utf16_null!("Antivirus");
-        let mut firewall = utf16_null!("Firewall");
-        let mut tools = utf16_null!("Tools");
-
-        let guest_submenu: HMENU = CreatePopupMenu();
+        let guest_submenu: HMENU = CreatePopupMenu()?;
         append_menu(guest_submenu, menu_state, guest_entries);
 
-        let debugger_submenu: HMENU = CreatePopupMenu();
+        let debugger_submenu: HMENU = CreatePopupMenu()?;
         append_menu(debugger_submenu, menu_state, debugger_entries);
 
-        let antivirus_submenu: HMENU = CreatePopupMenu();
+        let antivirus_submenu: HMENU = CreatePopupMenu()?;
         append_menu(antivirus_submenu, menu_state, antivirus_entries);
 
-        let firewall_submenu: HMENU = CreatePopupMenu();
+        let firewall_submenu: HMENU = CreatePopupMenu()?;
         append_menu(firewall_submenu, menu_state, firewall_entries);
 
-        let tools_submenu: HMENU = CreatePopupMenu();
+        let tools_submenu: HMENU = CreatePopupMenu()?;
         append_menu(tools_submenu, menu_state, tools_entries);
 
-        self.menu = CreatePopupMenu();
+        self.menu = CreatePopupMenu()?;
         AppendMenuW(
             self.menu,
             MF_STRING,
             MenuId::PAUSE as usize,
-            PWSTR(pause.as_mut_ptr()),
+            w!("Pause"),
         );
         AppendMenuW(self.menu, MF_SEPARATOR, 0, None);
         AppendMenuW(
             self.menu,
             MF_STRING | MF_POPUP,
-            guest_submenu as usize,
-            PWSTR(vm_guest.as_mut_ptr()),
+            guest_submenu.0 as usize,
+            w!("VM guest process"),
         );
         AppendMenuW(
             self.menu,
             MF_STRING | MF_POPUP,
-            debugger_submenu as usize,
-            PWSTR(debugger.as_mut_ptr()),
+            debugger_submenu.0 as usize,
+            w!("Debugger"),
         );
         AppendMenuW(
             self.menu,
             MF_STRING | MF_POPUP,
-            antivirus_submenu as usize,
-            PWSTR(antivirus.as_mut_ptr()),
+            antivirus_submenu.0 as usize,
+            w!("Antivirus"),
         );
         AppendMenuW(
             self.menu,
             MF_STRING | MF_POPUP,
-            firewall_submenu as usize,
-            PWSTR(firewall.as_mut_ptr()),
+            firewall_submenu.0 as usize,
+            w!("Firewall"),
         );
         AppendMenuW(
             self.menu,
             MF_STRING | MF_POPUP,
-            tools_submenu as usize,
-            PWSTR(tools.as_mut_ptr()),
+            tools_submenu.0 as usize,
+            w!("Tools"),
         );
         self.append_last_entries();
+        Ok(())
     }
 
     pub unsafe fn destroy(&mut self) {
@@ -176,8 +172,13 @@ impl MenuTray {
     }
 }
 
+// TODO: pretify?
 fn to_utf16(text: &str) -> Vec<u16> {
-    return text.encode_utf16().chain(std::iter::once(0)).collect();
+    return text.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+}
+
+fn to_pcwstr(text: *const u16) -> windows::core::PCWSTR {
+    return windows::core::PCWSTR(text);
 }
 
 fn append_menu(menu: HMENU, menu_state: &MenuState, entry_ids: &[MenuId]) {
@@ -187,12 +188,13 @@ fn append_menu(menu: HMENU, menu_state: &MenuState, entry_ids: &[MenuId]) {
         } else {
             MF_UNCHECKED
         };
+        let state_vec = to_utf16(menu_state.get_name(e));
         unsafe {
             AppendMenuW(
                 menu,
                 bird | MF_STRING,
                 *e as usize,
-                PWSTR(to_utf16(menu_state.get_name(e)).as_mut_ptr()),
+                to_pcwstr(state_vec.as_ptr()),
             )
         };
     }

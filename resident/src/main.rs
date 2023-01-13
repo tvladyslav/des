@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 
-use utf16_lit::utf16_null;
 use windows::{
+    w,
     // core::*,
     Win32::Foundation::*,
     Win32::Graphics::Gdi::ValidateRect,
@@ -32,35 +32,41 @@ mod macros;
 
 const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
+const LRESULT_SUCCESS: LRESULT = LRESULT(0);
 
 // Main menu
 static mut MENU_TRAY_ACTIVE: MenuTray = MenuTray::new();
 static mut MENU_TRAY_PAUSED: MenuTray = MenuTray::new();
 static mut MENU_STATE: MenuState = MenuState::new();
 
+// TODO: pretify?
 fn to_utf16(text: &str) -> Vec<u16> {
-    return text.encode_utf16().chain(std::iter::once(0)).collect();
+    return text.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+}
+
+fn to_pcwstr(text: *const u16) -> windows::core::PCWSTR {
+    return windows::core::PCWSTR(text);
 }
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
     unsafe { MENU_STATE.init_menu_entries() };
 
-    let module_handle: HINSTANCE = execute!(GetModuleHandleW(None))?;
+    let module_handle: HINSTANCE = unsafe { GetModuleHandleW(None) }?;
 
-    let icon_handle = execute!(LoadImageW(
+    let icon_handle = unsafe { LoadImageW(
         module_handle,
-        "resources/find_bug_icon_32px_by_Chenyu_Wang.ico",
+        w!("resources/find_bug_icon_32px_by_Chenyu_Wang.ico"),
         IMAGE_ICON,
         32,
         32,
         LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED,
-    ))?;
-    let icon: HICON = icon_handle.0;
+    ) }?;
+    assert!(!icon_handle.is_invalid());
 
-    //let menu_name = utf16_null!("some menu name");
-    let mut class_name = utf16_null!("notify_icon_class");
-    let cursor: HCURSOR = execute!(LoadCursorW(None, IDC_ARROW))?;
+    let icon: HICON = HICON(icon_handle.0);
+    let cursor: HCURSOR = unsafe {LoadCursorW(None, IDC_ARROW) }?;
+    let class_name = w!("notify_icon_class");
 
     let win_class = WNDCLASSEXW {
         cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
@@ -72,7 +78,7 @@ fn main() -> windows::core::Result<()> {
         hIcon: icon,
         hCursor: cursor,
         //    lpszMenuName: PWSTR(menu_name.as_ptr() as _),
-        lpszClassName: PWSTR(class_name.as_mut_ptr() as _),
+        lpszClassName: class_name,
         hIconSm: icon,
 
         ..Default::default()
@@ -81,12 +87,10 @@ fn main() -> windows::core::Result<()> {
     let atom: u16 = execute!(RegisterClassExW(&win_class))?;
     assert!(atom != 0);
 
-    let mut window_name = utf16_null!("The window");
-
     let win_handle: HWND = execute!(CreateWindowExW(
         Default::default(),
-        PWSTR(class_name.as_mut_ptr()),
-        PWSTR(window_name.as_mut_ptr()),
+        class_name,
+        w!("The window"),
         WS_DISABLED,  // WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -95,16 +99,12 @@ fn main() -> windows::core::Result<()> {
         None,
         None,
         module_handle,
-        std::ptr::null_mut(),
+        None,
     ))?;
 
-    let mut sz_tip: Vec<u16> = Vec::with_capacity(128);
-    sz_tip.extend_from_slice(&utf16_null!("Hostile environment imitator"));
-    sz_tip.resize(128, 0);
-
     unsafe {
-        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE);
-        MENU_TRAY_PAUSED.create_menu_paused();
+        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE)?;
+        MENU_TRAY_PAUSED.create_menu_paused()?;
     }
 
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
@@ -118,7 +118,10 @@ fn main() -> windows::core::Result<()> {
         ..Default::default()
     };
 
-    tray_data.szTip.clone_from_slice(sz_tip.as_slice());
+    let mut sz_tip: Vec<u16> = Vec::with_capacity(128);
+    sz_tip.extend_from_slice(unsafe { w!("Hostile environment imitator").as_wide() } );
+    sz_tip.resize(128, 0);
+    tray_data.szTip.clone_from_slice(&sz_tip);
 
     let is_added: BOOL = execute!(Shell_NotifyIconW(NIM_ADD, &tray_data))?;
     assert!(is_added.as_bool());
@@ -146,10 +149,10 @@ unsafe fn flip_menu_state(context_menu: HMENU, menu_item: MenuId) -> std::io::Re
     let is_active = MENU_STATE.is_process_active(&menu_item);
 
     if is_active {
-        CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED);
+        CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED.0);
         MENU_STATE.stop_process(&menu_item)
     } else {
-        CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED);
+        CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED.0);
         MENU_STATE.start_process(&menu_item)
     }
 }
@@ -175,7 +178,7 @@ unsafe extern "system" fn wndproc(
                     *MENU_TRAY_ACTIVE
                 };
                 handle_popup_menu(window, point, menu_handle);
-                0
+                LRESULT_SUCCESS
             }
             _ => DefWindowProcW(window, message, wparam, lparam),
         },
@@ -187,18 +190,20 @@ unsafe extern "system" fn wndproc(
                     let res = MENU_STATE.pause();
                     if let Err(e) = res {
                         let err_string: String = "Can't pause processes. ".to_string() + &e.to_string();
-                        MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
+                        let err_vec = to_utf16(err_string.as_str());
+                        MessageBoxW(window, to_pcwstr(err_vec.as_ptr()) , w!("Error"), MB_OK | MB_ICONERROR);
                     }
-                    0
+                    LRESULT_SUCCESS
                 }
                 MenuId::RESUME => {
                     // TODO: Modify menu UI
                     let res = MENU_STATE.resume();
                     if let Err(e) = res {
                         let err_string: String = "Can't resume processes ".to_string() + &e.to_string();
-                        MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
+                        let err_vec = to_utf16(err_string.as_str());
+                        MessageBoxW(window, to_pcwstr(err_vec.as_ptr()) , w!("Error"), MB_OK | MB_ICONERROR);
                     }
-                    0
+                    LRESULT_SUCCESS
                 }
                 MenuId::GUEST
                 | MenuId::DEBUGGER
@@ -207,8 +212,8 @@ unsafe extern "system" fn wndproc(
                 | MenuId::TOOLS
                 => {
                     // This should never happen. Assert?
-                    MessageBoxV!(0, "Selected non-active menu items.", "Error", MB_OK | MB_ICONERROR);
-                    0
+                    MessageBoxW(window, w!("Selected non-active menu items."), w!("Error"), MB_OK | MB_ICONERROR);
+                    LRESULT_SUCCESS
                 }
                 MenuId::GUEST_VIRTUALBOX
                 | MenuId::GUEST_VMWARE
@@ -261,25 +266,26 @@ unsafe extern "system" fn wndproc(
                     let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);
                     if let Err(e) = res {
                         let err_string: String = "Can't finish your request. ".to_string() + &e.to_string();
-                        MessageBoxV!(window, err_string.as_str() , "Error", MB_OK | MB_ICONERROR);
+                        let err_vec = to_utf16(err_string.as_str());
+                        MessageBoxW(window, to_pcwstr(err_vec.as_ptr()), w!("Error"), MB_OK | MB_ICONERROR);
                     }
-                    0
+                    LRESULT_SUCCESS
                 }
                 MenuId::ABOUT => {
-                    MessageBoxV!(window, "About", "Caption", MB_OK);
-                    0
+                    MessageBoxW(window, w!("About"), w!("Caption"), MB_OK);
+                    LRESULT_SUCCESS
                 }
                 MenuId::EXIT => {
-                    SendMessageW(window, WM_CLOSE, 0, 0);
-                    0
+                    SendMessageW(window, WM_CLOSE, WPARAM(0), LPARAM(0));
+                    LRESULT_SUCCESS
                 }
             }
         }
         WM_PAINT => {
-            ValidateRect(window, std::ptr::null());
-            0
+            ValidateRect(window, None);
+            LRESULT_SUCCESS
         }
-        WM_CREATE => 0,
+        WM_CREATE => LRESULT_SUCCESS,
         WM_DESTROY => {
             // We are in a process of destruction
             exit_routine()
@@ -294,7 +300,7 @@ unsafe fn exit_routine() -> LRESULT {
     MENU_TRAY_PAUSED.destroy();
     MENU_STATE.destroy();
     PostQuitMessage(0); // This spawns WM_QUIT which terminates main loop
-    0
+    LRESULT_SUCCESS
 }
 
 unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT, menu: HMENU) {
@@ -306,7 +312,7 @@ unsafe extern "system" fn handle_popup_menu(window: HWND, point: POINT, menu: HM
         point.y,
         0,
         window,
-        std::ptr::null::<RECT>(),
+        None,
     );
-    PostMessageW(window, WM_NULL, 0, 0);
+    PostMessageW(window, WM_NULL, WPARAM(0), LPARAM(0));
 }
