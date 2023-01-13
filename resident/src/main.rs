@@ -50,22 +50,33 @@ fn to_pcwstr(text: *const u16) -> windows::core::PCWSTR {
 
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
-    unsafe { MENU_STATE.init_menu_entries() };
+    let module_handle: HINSTANCE;
+    let icon_handle: HANDLE;
+    let cursor: HCURSOR;
+    unsafe {
+        MENU_STATE.init_menu_entries();
 
-    let module_handle: HINSTANCE = unsafe { GetModuleHandleW(None) }?;
+        module_handle = GetModuleHandleW(None)?;
+        assert!(!module_handle.is_invalid());
 
-    let icon_handle = unsafe { LoadImageW(
-        module_handle,
-        w!("resources/find_bug_icon_32px_by_Chenyu_Wang.ico"),
-        IMAGE_ICON,
-        32,
-        32,
-        LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED,
-    ) }?;
-    assert!(!icon_handle.is_invalid());
+        icon_handle = LoadImageW(
+            module_handle,
+            w!("resources/find_bug_icon_32px_by_Chenyu_Wang.ico"),
+            IMAGE_ICON,
+            32,
+            32,
+            LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED,
+        )?;
+        assert!(!icon_handle.is_invalid());
+
+        cursor = LoadCursorW(None, IDC_ARROW)?;
+        assert!(!cursor.is_invalid());
+
+        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE)?;
+        MENU_TRAY_PAUSED.create_menu_paused()?;
+    }
 
     let icon: HICON = HICON(icon_handle.0);
-    let cursor: HCURSOR = unsafe {LoadCursorW(None, IDC_ARROW) }?;
     let class_name = w!("notify_icon_class");
 
     let win_class = WNDCLASSEXW {
@@ -102,11 +113,6 @@ fn main() -> windows::core::Result<()> {
         None,
     ))?;
 
-    unsafe {
-        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE)?;
-        MENU_TRAY_PAUSED.create_menu_paused()?;
-    }
-
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: win_handle,
@@ -118,10 +124,13 @@ fn main() -> windows::core::Result<()> {
         ..Default::default()
     };
 
-    let mut sz_tip: Vec<u16> = Vec::with_capacity(128);
-    sz_tip.extend_from_slice(unsafe { w!("Hostile environment imitator").as_wide() } );
-    sz_tip.resize(128, 0);
-    tray_data.szTip.clone_from_slice(&sz_tip);
+    {
+        // Yes, we have to tiptoe around sz_tip to assure it's length is exactly 128 bytes
+        let mut sz_tip: Vec<u16> = Vec::with_capacity(128);
+        sz_tip.extend_from_slice(unsafe { w!("Hostile environment imitator").as_wide() } );
+        sz_tip.resize(128, 0);
+        tray_data.szTip.clone_from_slice(&sz_tip);
+    }
 
     let is_added: BOOL = execute!(Shell_NotifyIconW(NIM_ADD, &tray_data))?;
     assert!(is_added.as_bool());
