@@ -158,12 +158,13 @@ unsafe fn flip_menu_state(context_menu: HMENU, menu_item: MenuId) -> std::io::Re
     let is_active = MENU_STATE.is_process_active(&menu_item);
 
     if is_active {
+        MENU_STATE.stop_process(&menu_item)?;
         CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED.0);
-        MENU_STATE.stop_process(&menu_item)
     } else {
+        MENU_STATE.start_process(&menu_item)?;
         CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED.0);
-        MENU_STATE.start_process(&menu_item)
     }
+    Ok(())
 }
 
 unsafe extern "system" fn wndproc(
