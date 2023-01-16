@@ -1,0 +1,1 @@
+pub const KEEP_STUB_COPIES: bool = true;

@@ -22,6 +22,8 @@ mod menu_entry; //TODO: remove?
 mod release;
 use crate::release::TRAY_ICON_PATH;
 
+mod config;
+
 mod utf16;
 use utf16::{to_pcwstr, to_utf16};
 

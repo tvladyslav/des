@@ -1,13 +1,19 @@
 use sha2::{Sha512, Digest};
-use std::{fs, io, process::Command};
-use crate::release::{HOME_FOLDER, STUB_HASH};
+use std::{fs, io, process::Command, path::Path};
 
-fn get_file_hash(path: &str) -> Result<String, io::Error> {
+use crate::release::{HOME_FOLDER, STUB_HASH};
+use crate::config::KEEP_STUB_COPIES;
+
+fn verify_file_hash(path: &str) -> Result<(), io::Error> {
     let mut file = fs::File::open(path)?;
     let mut hasher = Sha512::new();
     let _n = io::copy(&mut file, &mut hasher)?;
     let hash = hasher.finalize();
-    Ok(hash.iter().map(|v| format!("{:02X}", v)).collect())
+    let hash_string: String = hash.iter().map(|v| format!("{:02X}", v)).collect::<String>();
+    if !hash_string.eq_ignore_ascii_case(STUB_HASH) {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Stub hash mismatch."));
+    }
+    Ok(())
 }
 
 pub struct MenuEntry<'u> {
@@ -23,20 +29,21 @@ impl <'u> MenuEntry<'u> {
 
     pub fn start_process(&mut self) -> std::io::Result<()> {
         let stub_path = String::from(HOME_FOLDER) + "des-stub.exe";
-        let stub_hash = get_file_hash(&stub_path)?;
-        if !stub_hash.eq_ignore_ascii_case(STUB_HASH) {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "Stub hash mismatch."));
-        }
-
+        verify_file_hash(&stub_path)?;
+        // <- timing attack possible, will be fixed in future
         self.start_process_unsafe()
     }
 
-    pub fn start_process_unsafe(&mut self) -> std::io::Result<()> {
-        let stub_path = String::from(HOME_FOLDER) + "des-stub.exe";
+    fn start_process_unsafe(&mut self) -> std::io::Result<()> {
         for (process_name, process_child) in &mut self.processes {
             if process_child.is_none() {
                 let process_path: String = String::from(HOME_FOLDER) + process_name;
-                fs::copy(&stub_path, &process_path)?;
+                if Path::new(&process_path).exists() {
+                    verify_file_hash(&process_path)?;
+                } else {
+                    let stub_path = String::from(HOME_FOLDER) + "des-stub.exe";
+                    fs::copy(stub_path, &process_path)?;
+                }
                 let c = Command::new(&process_path).arg("arg1").spawn()?;
                 *process_child = Some(c);
             }
@@ -49,9 +56,11 @@ impl <'u> MenuEntry<'u> {
         for (process_name, process_child) in &mut self.processes {
             if let Some(proc) = process_child {
                 proc.kill()?;
-                proc.wait()?;
-                let process_path: String = String::from(HOME_FOLDER) + process_name;
-                fs::remove_file(process_path)?;
+                if !KEEP_STUB_COPIES {
+                    proc.wait()?;
+                    let process_path: String = String::from(HOME_FOLDER) + process_name;
+                    fs::remove_file(process_path)?;
+                }
                 *process_child = None
             }
         }
