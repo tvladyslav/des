@@ -11,6 +11,7 @@ license = "GPL v3"
 [dependencies]
 num-traits = "0.2"
 num-derive = "0.3"
+sha2 = "0.10.6"
 
 [dependencies.windows]
 version = "0.44.0"

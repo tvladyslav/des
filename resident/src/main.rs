@@ -12,6 +12,8 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
+extern crate sha2;
+
 #[macro_use]
 extern crate num_derive;
 use num_traits::FromPrimitive;
