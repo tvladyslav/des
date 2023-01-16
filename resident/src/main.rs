@@ -293,7 +293,15 @@ unsafe extern "system" fn wndproc(
                     LRESULT_SUCCESS
                 }
                 MenuId::ABOUT => {
-                    MessageBoxW(window, w!("About"), w!("Caption"), MB_OK);
+                    let text = w!(
+                        "Version: 1.0.0\n \
+                        Author: Vladyslav Tsilytskyi\n \
+                        Tray icon: Chenyu Wang\n \
+                        License: GPLv3\n \
+                        DES application does one simple thing - it\n \
+                        spawns many dummy processes that look like\n \
+                        hostile for malware and viruses.");
+                    MessageBoxW(window, text, w!("About"), MB_OK);
                     LRESULT_SUCCESS
                 }
                 MenuId::EXIT => {
