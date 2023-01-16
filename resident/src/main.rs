@@ -17,6 +17,11 @@ extern crate num_derive;
 use num_traits::FromPrimitive;
 
 mod menu_entry; //TODO: remove?
+mod release;
+use crate::release::TRAY_ICON_PATH;
+
+mod utf16;
+use utf16::{to_pcwstr, to_utf16};
 
 mod menu_state;
 use menu_state::MenuState;
@@ -39,15 +44,6 @@ static mut MENU_TRAY_ACTIVE: MenuTray = MenuTray::new();
 static mut MENU_TRAY_PAUSED: MenuTray = MenuTray::new();
 static mut MENU_STATE: MenuState = MenuState::new();
 
-// TODO: pretify?
-fn to_utf16(text: &str) -> Vec<u16> {
-    return text.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-}
-
-fn to_pcwstr(text: *const u16) -> windows::core::PCWSTR {
-    return windows::core::PCWSTR(text);
-}
-
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
     let module_handle: HINSTANCE;
@@ -61,7 +57,7 @@ fn main() -> windows::core::Result<()> {
 
         icon_handle = LoadImageW(
             module_handle,
-            w!("resources/find_bug_icon_32px_by_Chenyu_Wang.ico"),
+            TRAY_ICON_PATH,
             IMAGE_ICON,
             32,
             32,

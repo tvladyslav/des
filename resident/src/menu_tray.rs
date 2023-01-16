@@ -5,6 +5,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::menu_ids::MenuId;
 use crate::menu_state::MenuState;
+use crate::utf16::*;
 
 pub struct MenuTray {
     pub menu: HMENU
@@ -170,15 +171,6 @@ impl MenuTray {
     pub unsafe fn destroy(&mut self) {
         DestroyMenu(self.menu);
     }
-}
-
-// TODO: pretify?
-fn to_utf16(text: &str) -> Vec<u16> {
-    return text.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-}
-
-fn to_pcwstr(text: *const u16) -> windows::core::PCWSTR {
-    return windows::core::PCWSTR(text);
 }
 
 fn append_menu(menu: HMENU, menu_state: &MenuState, entry_ids: &[MenuId]) {

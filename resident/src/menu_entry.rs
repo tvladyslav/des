@@ -1,8 +1,6 @@
 use std::fs;
 use std::process::Command;
-
-// TODO: should differ for cargo and non-cargo run
-const HOME_FOLDER: &str = "./target/debug/";
+use crate::release::HOME_FOLDER;
 
 pub struct MenuEntry<'u> {
     entry_text: &'u str,
@@ -52,7 +50,7 @@ impl <'u> MenuEntry<'u> {
         self.entry_text
     }
 
-    pub fn refresh(&mut self) {
-        panic!("Not implemented!");
-    }
+    // pub fn refresh(&mut self) {
+    //     panic!("Not implemented!");
+    // }
 }
