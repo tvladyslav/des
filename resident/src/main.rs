@@ -23,6 +23,7 @@ mod release;
 use crate::release::TRAY_ICON_PATH;
 
 mod config;
+use crate::config::DEFAULT_PROCESS;
 
 mod utf16;
 use utf16::{to_pcwstr, to_utf16};
@@ -71,6 +72,16 @@ fn main() -> windows::core::Result<()> {
 
         cursor = LoadCursorW(None, IDC_ARROW)?;
         assert!(!cursor.is_invalid());
+
+        for m in DEFAULT_PROCESS {
+            let res = MENU_STATE.start_process(m);
+            if let Err(e) = res {
+                let err_string: String = "Can't autorun default processes. ".to_string() + &e.to_string();
+                let err_vec = to_utf16(err_string.as_str());
+                MessageBoxW(HWND(0), to_pcwstr(err_vec.as_ptr()) , w!("Error"), MB_OK | MB_ICONERROR);
+                break;
+            }
+        }
 
         MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE)?;
         MENU_TRAY_PAUSED.create_menu_paused()?;
