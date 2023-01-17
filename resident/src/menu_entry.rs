@@ -1,7 +1,7 @@
 use sha2::{Sha512, Digest};
 use std::{fs, io, process::Command, path::Path};
 
-use crate::release::{HOME_FOLDER, STUB_HASH};
+use crate::release::{HOME_FOLDER, STUB_HASH, STUB_CONTENT};
 use crate::config::KEEP_STUB_COPIES;
 
 fn verify_file_hash(path: &str) -> Result<(), io::Error> {
@@ -28,21 +28,13 @@ impl <'u> MenuEntry<'u> {
     }
 
     pub fn start_process(&mut self) -> std::io::Result<()> {
-        let stub_path = String::from(HOME_FOLDER) + "des-stub.exe";
-        verify_file_hash(&stub_path)?;
-        // <- timing attack possible, will be fixed in future
-        self.start_process_unsafe()
-    }
-
-    fn start_process_unsafe(&mut self) -> std::io::Result<()> {
         for (process_name, process_child) in &mut self.processes {
             if process_child.is_none() {
                 let process_path: String = String::from(HOME_FOLDER) + process_name;
                 if Path::new(&process_path).exists() {
                     verify_file_hash(&process_path)?;
                 } else {
-                    let stub_path = String::from(HOME_FOLDER) + "des-stub.exe";
-                    fs::copy(stub_path, &process_path)?;
+                    fs::write(&process_path, STUB_CONTENT)?;
                 }
                 let c = Command::new(&process_path).arg("arg1").spawn()?;
                 *process_child = Some(c);

@@ -159,8 +159,11 @@ fn main() -> windows::core::Result<()> {
         }
     }
 
-    let is_deleted: BOOL = execute!(Shell_NotifyIconW(NIM_DELETE, &tray_data))?;
-    assert!(is_deleted.as_bool());
+    let is_tray_icon_deleted: BOOL = execute!(Shell_NotifyIconW(NIM_DELETE, &tray_data))?;
+    assert!(is_tray_icon_deleted.as_bool());
+
+    // let is_icon_deleted: BOOL = execute!(DestroyIcon(icon))?;
+    // assert!(is_icon_deleted.as_bool());
 
     Ok(())
 }
