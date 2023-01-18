@@ -18,9 +18,8 @@ extern crate sha2;
 extern crate num_derive;
 use num_traits::FromPrimitive;
 
-mod menu_entry; //TODO: remove?
+mod menu_entry;
 mod release;
-use crate::release::TRAY_ICON_PATH;
 
 mod config;
 use crate::config::DEFAULT_PROCESS;
@@ -52,23 +51,20 @@ static mut MENU_STATE: MenuState = MenuState::new();
 #[cfg(windows)]
 fn main() -> windows::core::Result<()> {
     let module_handle: HINSTANCE;
-    let icon_handle: HANDLE;
+    let icon: HICON;
     let cursor: HCURSOR;
+    let active_icon_res = windows::core::PCWSTR(17 as *const u16);
     unsafe {
         MENU_STATE.init_menu_entries();
 
         module_handle = GetModuleHandleW(None)?;
         assert!(!module_handle.is_invalid());
 
-        icon_handle = LoadImageW(
+        icon = LoadIconW(
             module_handle,
-            TRAY_ICON_PATH,
-            IMAGE_ICON,
-            32,
-            32,
-            LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED,
+            active_icon_res
         )?;
-        assert!(!icon_handle.is_invalid());
+        assert!(!icon.is_invalid());
 
         cursor = LoadCursorW(None, IDC_ARROW)?;
         assert!(!cursor.is_invalid());
@@ -87,7 +83,6 @@ fn main() -> windows::core::Result<()> {
         MENU_TRAY_PAUSED.create_menu_paused()?;
     }
 
-    let icon: HICON = HICON(icon_handle.0);
     let class_name = w!("notify_icon_class");
 
     let win_class = WNDCLASSEXW {
@@ -297,7 +292,7 @@ unsafe extern "system" fn wndproc(
                 }
                 MenuId::ABOUT => {
                     let text = w!(
-                        "Version: 1.0.0\n \
+                        "Version: 1.1.0\n \
                         Author: Vladyslav Tsilytskyi\n \
                         Tray icon: Chenyu Wang\n \
                         License: GPLv3\n \

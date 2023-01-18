@@ -1,11 +1,12 @@
 [package]
 name = "des-resident"
 description = "Resident process that starts and stops stubs."
-version = "1.0.0"
+version = "1.1.0"
 authors = ["tvladyslav <ykp@protonmail.ch>"]
 edition = "2018"
 repository = "https://github.com/tvladyslav/des/"
 license = "GPL v3"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
