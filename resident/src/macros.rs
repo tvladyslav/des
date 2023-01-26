@@ -26,8 +26,7 @@ macro_rules! execute {
     }};
 }
 
-#[macro_export]
-macro_rules! dprint {
+macro_rules! _dprint {
     ($str:expr) => {{
         unsafe { windows::Win32::System::Diagnostics::Debug::OutputDebugStringW(
             windows::Win32::Foundation::PWSTR($str.as_mut_ptr())

@@ -5,7 +5,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::menu_ids::MenuId;
 use crate::menu_state::MenuState;
-use crate::utf16::*;
+use crate::utf16::to_pcwstr;
 
 pub struct MenuTray {
     pub menu: HMENU
@@ -180,13 +180,12 @@ fn append_menu(menu: HMENU, menu_state: &MenuState, entry_ids: &[MenuId]) {
         } else {
             MF_UNCHECKED
         };
-        let state_vec = to_utf16(menu_state.get_name(e));
         unsafe {
             AppendMenuW(
                 menu,
                 bird | MF_STRING,
                 *e as usize,
-                to_pcwstr(state_vec.as_ptr()),
+                to_pcwstr(menu_state.get_name(e)).1,
             )
         };
     }

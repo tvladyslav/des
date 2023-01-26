@@ -72,9 +72,8 @@ fn main() -> windows::core::Result<()> {
         for m in DEFAULT_PROCESS {
             let res = MENU_STATE.start_process(m);
             if let Err(e) = res {
-                let err_string: String = "Can't autorun default processes. ".to_string() + &e.to_string();
-                let err_vec = to_utf16(err_string.as_str());
-                MessageBoxW(HWND(0), to_pcwstr(err_vec.as_ptr()) , w!("Error"), MB_OK | MB_ICONERROR);
+                let err: String = "Can't autorun default processes. ".to_string() + &e.to_string();
+                MessageBoxW(HWND(0), to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
                 break;
             }
         }
@@ -208,9 +207,8 @@ unsafe extern "system" fn wndproc(
                     // TODO: Modify menu UI
                     let res = MENU_STATE.pause();
                     if let Err(e) = res {
-                        let err_string: String = "Can't pause processes. ".to_string() + &e.to_string();
-                        let err_vec = to_utf16(err_string.as_str());
-                        MessageBoxW(window, to_pcwstr(err_vec.as_ptr()) , w!("Error"), MB_OK | MB_ICONERROR);
+                        let err: String = "Can't pause processes. ".to_string() + &e.to_string();
+                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
                     }
                     LRESULT_SUCCESS
                 }
@@ -218,9 +216,8 @@ unsafe extern "system" fn wndproc(
                     // TODO: Modify menu UI
                     let res = MENU_STATE.resume();
                     if let Err(e) = res {
-                        let err_string: String = "Can't resume processes ".to_string() + &e.to_string();
-                        let err_vec = to_utf16(err_string.as_str());
-                        MessageBoxW(window, to_pcwstr(err_vec.as_ptr()) , w!("Error"), MB_OK | MB_ICONERROR);
+                        let err: String = "Can't resume processes ".to_string() + &e.to_string();
+                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
                     }
                     LRESULT_SUCCESS
                 }
@@ -284,9 +281,8 @@ unsafe extern "system" fn wndproc(
                     // TODO: Is there a nice way to bind this variable?
                     let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);
                     if let Err(e) = res {
-                        let err_string: String = "Can't finish your request. ".to_string() + &e.to_string();
-                        let err_vec = to_utf16(err_string.as_str());
-                        MessageBoxW(window, to_pcwstr(err_vec.as_ptr()), w!("Error"), MB_OK | MB_ICONERROR);
+                        let err: String = "Can't finish your request. ".to_string() + &e.to_string();
+                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
                     }
                     LRESULT_SUCCESS
                 }
