@@ -1,8 +1,11 @@
 use sha2::{Sha512, Digest};
+use std::io::ErrorKind;
 use std::{fs, io, process::Command, path::Path};
 
 use crate::release::{HOME_FOLDER, STUB_HASH, STUB_CONTENT};
 use crate::config::KEEP_STUB_COPIES;
+
+const PROC_FOLDER: &str = "proc/";
 
 fn verify_file_hash(path: &str) -> Result<(), io::Error> {
     let mut file = fs::File::open(path)?;
@@ -30,10 +33,18 @@ impl <'u> MenuEntry<'u> {
     pub fn start_process(&mut self) -> std::io::Result<()> {
         for (process_name, process_child) in &mut self.processes {
             if process_child.is_none() {
-                let process_path: String = String::from(HOME_FOLDER) + process_name;
+                let dir_path: String = String::from(HOME_FOLDER) + PROC_FOLDER;
+                let process_path: String = dir_path.clone() + process_name;
                 if Path::new(&process_path).exists() {
                     verify_file_hash(&process_path)?;
                 } else {
+                    // TODO: try_exists when stabilized
+                    let res = fs::create_dir(&dir_path);
+                    if let Err(e) = &res {
+                        if e.kind() != ErrorKind::AlreadyExists {
+                            return res;
+                        }
+                    }
                     fs::write(&process_path, STUB_CONTENT)?;
                 }
                 let c = Command::new(&process_path).arg("arg1").spawn()?;
@@ -50,7 +61,7 @@ impl <'u> MenuEntry<'u> {
                 proc.kill()?;
                 if !KEEP_STUB_COPIES {
                     proc.wait()?;
-                    let process_path: String = String::from(HOME_FOLDER) + process_name;
+                    let process_path: String = String::from(HOME_FOLDER) + PROC_FOLDER + process_name;
                     fs::remove_file(process_path)?;
                 }
                 *process_child = None
