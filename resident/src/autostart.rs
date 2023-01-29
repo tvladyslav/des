@@ -16,6 +16,7 @@ use windows:: {
 use core::ffi::c_void;
 
 use crate::utf16::to_utf16;
+use crate::simple_execute;
 
 const STARTUP_SUBPATH: PCWSTR = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 const VALUE_NAME: PCWSTR = w!("des");
@@ -31,7 +32,7 @@ impl AutoStart {
     }
 
     pub fn init(&mut self) -> Result<bool> {
-        let result = unsafe { RegCreateKeyExW(
+        simple_execute!(RegCreateKeyExW(
             HKEY_CURRENT_USER,
             STARTUP_SUBPATH,
             0,
@@ -41,10 +42,7 @@ impl AutoStart {
             None,
             &mut self.handle,
             None    // Not interested in this value
-        )};
-        if result != ERROR_SUCCESS {
-            return Err(result.into());
-        }
+        ));
         self.is_enabled = self.is_enabled_in_registry()?;
         Ok(self.is_enabled)
     }
@@ -57,28 +55,22 @@ impl AutoStart {
     pub fn enable(&mut self) -> Result<()> {
         let path = std::env::current_exe().unwrap();    // TODO: no unwraps!
         let path_vec = to_utf16(path.to_str().unwrap());
-        let result = unsafe { RegSetValueExW(
+        simple_execute!(RegSetValueExW(
             self.handle,
             VALUE_NAME,
             0,
             REG_SZ,
             Some(path_vec.align_to::<u8>().1),
-        ) } ;
-        if result != ERROR_SUCCESS {
-            return Err(result.into())
-        }
+        ));
         self.is_enabled = true;
         Ok(())
     }
 
     pub fn disable(&mut self) -> Result<()> {
-        let result = unsafe { RegDeleteValueW(
+        simple_execute!(RegDeleteValueW(
             self.handle,
             VALUE_NAME
-        ) } ;
-        if result != ERROR_SUCCESS {
-            return Err(result.into())
-        }
+        ));
         self.is_enabled = false;
         Ok(())
     }

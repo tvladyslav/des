@@ -26,6 +26,17 @@ macro_rules! execute {
     }};
 }
 
+/// Same as execute!, but for functions, that return WIN32_ERROR
+#[macro_export]
+macro_rules! simple_execute {
+    ($func:expr) => {{
+        let result = unsafe { $func };
+        if result != ERROR_SUCCESS {
+            return Err(result.into());
+        }
+    }};
+}
+
 macro_rules! _dprint {
     ($str:expr) => {{
         unsafe { windows::Win32::System::Diagnostics::Debug::OutputDebugStringW(

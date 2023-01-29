@@ -191,6 +191,17 @@ unsafe fn flip_autorun(context_menu: HMENU, menu_item: MenuId) -> Result<()> {
     Ok(())
 }
 
+fn notify_if_error<T>(res: std::result::Result<(), T>, window: HWND, message: &str) -> LRESULT
+where T: std::fmt::Display {
+    if let Err(e) = res {
+        let err: String = message.to_string() + " " + &e.to_string();
+        unsafe {
+            MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
+        }
+    }
+    LRESULT_SUCCESS
+}
+
 unsafe extern "system" fn wndproc(
     window: HWND,
     message: u32,
@@ -220,30 +231,16 @@ unsafe extern "system" fn wndproc(
             let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap();
             match lo_wparam {
                 MenuId::PAUSE => {
-                    // TODO: Modify menu UI
                     let res = MENU_STATE.pause();
-                    if let Err(e) = res {
-                        let err: String = "Can't pause processes. ".to_string() + &e.to_string();
-                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
-                    }
-                    LRESULT_SUCCESS
+                    notify_if_error(res, window, "Can't pause processes.")
                 }
                 MenuId::RESUME => {
-                    // TODO: Modify menu UI
                     let res = MENU_STATE.resume();
-                    if let Err(e) = res {
-                        let err: String = "Can't resume processes ".to_string() + &e.to_string();
-                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
-                    }
-                    LRESULT_SUCCESS
+                    notify_if_error(res, window, "Can't resume processes.")
                 }
                 MenuId::AUTOSTART => {
                     let res = flip_autorun(*MENU_TRAY_ACTIVE, lo_wparam);
-                    if let Err(e) = res {
-                        let err: String = "Error when accessing registry. ".to_string() + &e.to_string();
-                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
-                    }
-                    LRESULT_SUCCESS
+                    notify_if_error(res, window, "Error when accessing registry.")
                 }
                 MenuId::GUEST
                 | MenuId::DEBUGGER
@@ -304,11 +301,7 @@ unsafe extern "system" fn wndproc(
                 => {
                     // TODO: Is there a nice way to bind this variable?
                     let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);
-                    if let Err(e) = res {
-                        let err: String = "Can't finish your request. ".to_string() + &e.to_string();
-                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
-                    }
-                    LRESULT_SUCCESS
+                    notify_if_error(res, window, "Can't finish your request.")
                 }
                 MenuId::ABOUT => {
                     let text = w!(
