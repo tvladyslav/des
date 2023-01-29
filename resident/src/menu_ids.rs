@@ -63,6 +63,7 @@ pub enum MenuId {
     // Scylla
     // Ghidra
 
+    AUTOSTART,
     ABOUT,
     EXIT,
     PAUSE,

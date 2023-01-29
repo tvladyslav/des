@@ -8,7 +8,7 @@ use crate::menu_state::MenuState;
 use crate::utf16::to_pcwstr;
 
 pub struct MenuTray {
-    pub menu: HMENU
+    menu: HMENU
 }
 
 impl Deref for MenuTray {
@@ -28,9 +28,20 @@ impl MenuTray {
         self.menu.0 != -1
     }
 
-    unsafe fn append_last_entries(&mut self) {
+    unsafe fn append_last_entries(&mut self, autostart: bool) {
+        let autostart_tick = if autostart {
+            MF_CHECKED
+        } else {
+            MF_UNCHECKED
+        };
         assert!(self.is_initialized());
         AppendMenuW(self.menu, MF_SEPARATOR, 0, None);
+        AppendMenuW(
+            self.menu,
+            MF_STRING | autostart_tick,
+            MenuId::AUTOSTART as usize,
+            w!("Autostart"),
+        );
         AppendMenuW(
             self.menu,
             MF_STRING,
@@ -45,7 +56,7 @@ impl MenuTray {
         );
     }
 
-    pub unsafe fn create_menu_paused(&mut self) -> windows::core::Result<()> {
+    pub unsafe fn create_menu_paused(&mut self, autostart: bool) -> windows::core::Result<()> {
         assert!(!self.is_initialized());
 
         self.menu = CreatePopupMenu()?;
@@ -56,11 +67,11 @@ impl MenuTray {
             MenuId::RESUME as usize,
             w!("Resume"),
         );
-        self.append_last_entries();
+        self.append_last_entries(autostart);
         Ok(())
     }
 
-    pub unsafe fn create_menu_active(&mut self, menu_state: &MenuState) -> windows::core::Result<()> {
+    pub unsafe fn create_menu_active(&mut self, menu_state: &MenuState, autostart: bool) -> windows::core::Result<()> {
         assert!(!self.is_initialized());
         let guest_entries: &[MenuId] = &[
             MenuId::GUEST_VIRTUALBOX,
@@ -164,7 +175,7 @@ impl MenuTray {
             tools_submenu.0 as usize,
             w!("Tools"),
         );
-        self.append_last_entries();
+        self.append_last_entries(autostart);
         Ok(())
     }
 

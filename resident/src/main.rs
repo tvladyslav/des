@@ -2,7 +2,10 @@
 
 use windows::{
     w,
-    // core::*,
+    core::{
+        PCWSTR,
+        Result,
+    },
     Win32::Foundation::*,
     Win32::Graphics::Gdi::ValidateRect,
     Win32::System::LibraryLoader::GetModuleHandleW,
@@ -18,14 +21,17 @@ extern crate sha2;
 extern crate num_derive;
 use num_traits::FromPrimitive;
 
+mod autostart;
+use autostart::AutoStart;
+
 mod menu_entry;
 mod release;
 
 mod config;
-use crate::config::DEFAULT_PROCESS;
+use config::DEFAULT_PROCESS;
 
 mod utf16;
-use utf16::{to_pcwstr, to_utf16};
+use utf16::to_pcwstr;
 
 mod menu_state;
 use menu_state::MenuState;
@@ -39,31 +45,30 @@ use menu_tray::MenuTray;
 #[macro_use]
 mod macros;
 
+// ===== Constants =====
 const TRAY_ICON_ID: u32 = 5;
 const TRAY_MESSAGE: u32 = WM_APP + 1;
 const LRESULT_SUCCESS: LRESULT = LRESULT(0);
 
-// Main menu
+// ===== State of the application =====
 static mut MENU_TRAY_ACTIVE: MenuTray = MenuTray::new();
 static mut MENU_TRAY_PAUSED: MenuTray = MenuTray::new();
 static mut MENU_STATE: MenuState = MenuState::new();
+static mut AUTOSTART: AutoStart = AutoStart::new();
 
 #[cfg(windows)]
-fn main() -> windows::core::Result<()> {
+fn main() -> Result<()> {
     let module_handle: HINSTANCE;
     let icon: HICON;
     let cursor: HCURSOR;
-    let active_icon_res = windows::core::PCWSTR(17 as *const u16);
+    let active_icon_res = PCWSTR(17 as *const u16);
     unsafe {
         MENU_STATE.init_menu_entries();
 
         module_handle = GetModuleHandleW(None)?;
         assert!(!module_handle.is_invalid());
 
-        icon = LoadIconW(
-            module_handle,
-            active_icon_res
-        )?;
+        icon = LoadIconW(module_handle, active_icon_res)?;
         assert!(!icon.is_invalid());
 
         cursor = LoadCursorW(None, IDC_ARROW)?;
@@ -78,8 +83,9 @@ fn main() -> windows::core::Result<()> {
             }
         }
 
-        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE)?;
-        MENU_TRAY_PAUSED.create_menu_paused()?;
+        let autostart = AUTOSTART.init()?;
+        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE, autostart)?;
+        MENU_TRAY_PAUSED.create_menu_paused(autostart)?;
     }
 
     let class_name = w!("notify_icon_class");
@@ -156,9 +162,6 @@ fn main() -> windows::core::Result<()> {
     let is_tray_icon_deleted: BOOL = execute!(Shell_NotifyIconW(NIM_DELETE, &tray_data))?;
     assert!(is_tray_icon_deleted.as_bool());
 
-    // let is_icon_deleted: BOOL = execute!(DestroyIcon(icon))?;
-    // assert!(is_icon_deleted.as_bool());
-
     Ok(())
 }
 
@@ -170,6 +173,19 @@ unsafe fn flip_menu_state(context_menu: HMENU, menu_item: MenuId) -> std::io::Re
         CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED.0);
     } else {
         MENU_STATE.start_process(&menu_item)?;
+        CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED.0);
+    }
+    Ok(())
+}
+
+unsafe fn flip_autorun(context_menu: HMENU, menu_item: MenuId) -> Result<()> {
+    let is_enabled = AUTOSTART.is_enabled();
+
+    if is_enabled {
+        AUTOSTART.disable()?;
+        CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED.0);
+    } else {
+        AUTOSTART.enable()?;
         CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED.0);
     }
     Ok(())
@@ -217,6 +233,14 @@ unsafe extern "system" fn wndproc(
                     let res = MENU_STATE.resume();
                     if let Err(e) = res {
                         let err: String = "Can't resume processes ".to_string() + &e.to_string();
+                        MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
+                    }
+                    LRESULT_SUCCESS
+                }
+                MenuId::AUTOSTART => {
+                    let res = flip_autorun(*MENU_TRAY_ACTIVE, lo_wparam);
+                    if let Err(e) = res {
+                        let err: String = "Error when accessing registry. ".to_string() + &e.to_string();
                         MessageBoxW(window, to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
                     }
                     LRESULT_SUCCESS
@@ -322,6 +346,7 @@ unsafe fn exit_routine() -> LRESULT {
     MENU_TRAY_ACTIVE.destroy();
     MENU_TRAY_PAUSED.destroy();
     MENU_STATE.destroy();
+    AUTOSTART.destroy();
     PostQuitMessage(0); // This spawns WM_QUIT which terminates main loop
     LRESULT_SUCCESS
 }
