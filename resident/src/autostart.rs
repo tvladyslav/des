@@ -15,8 +15,12 @@ use windows:: {
 
 use core::ffi::c_void;
 
-use crate::utf16::to_utf16;
-use crate::simple_execute;
+use crate::{
+    utf16::to_utf16,
+    menu_ids::MenuId,
+    simple_execute,
+    switch::Switch,
+};
 
 const STARTUP_SUBPATH: PCWSTR = w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 const VALUE_NAME: PCWSTR = w!("des");
@@ -24,6 +28,37 @@ const VALUE_NAME: PCWSTR = w!("des");
 pub struct AutoStart {
     is_enabled: bool,
     handle: HKEY,
+}
+
+impl Switch for AutoStart {
+    type ErrorType = windows::core::Error;
+    fn enable(&mut self, _id: &MenuId) -> windows::core::Result<()> {
+        let path = std::env::current_exe().unwrap();    // TODO: no unwraps!
+        let path_vec = to_utf16(path.to_str().unwrap());
+        simple_execute!(RegSetValueExW(
+            self.handle,
+            VALUE_NAME,
+            0,
+            REG_SZ,
+            Some(path_vec.align_to::<u8>().1),
+        ));
+        self.is_enabled = true;
+        Ok(())
+    }
+
+    fn disable(&mut self, _id: &MenuId) -> windows::core::Result<()> {
+        simple_execute!(RegDeleteValueW(
+            self.handle,
+            VALUE_NAME
+        ));
+        self.is_enabled = false;
+        Ok(())
+    }
+
+    #[must_use]
+    fn is_enabled(&self, _id: &MenuId) -> bool {
+        self.is_enabled
+    }
 }
 
 impl AutoStart {
@@ -50,34 +85,6 @@ impl AutoStart {
     pub unsafe fn destroy(&mut self) {
         let _err = RegCloseKey(self.handle);
         // Ignore error, application is closing anyway
-    }
-
-    pub fn enable(&mut self) -> Result<()> {
-        let path = std::env::current_exe().unwrap();    // TODO: no unwraps!
-        let path_vec = to_utf16(path.to_str().unwrap());
-        simple_execute!(RegSetValueExW(
-            self.handle,
-            VALUE_NAME,
-            0,
-            REG_SZ,
-            Some(path_vec.align_to::<u8>().1),
-        ));
-        self.is_enabled = true;
-        Ok(())
-    }
-
-    pub fn disable(&mut self) -> Result<()> {
-        simple_execute!(RegDeleteValueW(
-            self.handle,
-            VALUE_NAME
-        ));
-        self.is_enabled = false;
-        Ok(())
-    }
-
-    #[must_use]
-    pub const fn is_enabled(&self) -> bool {
-        self.is_enabled
     }
 
     fn is_enabled_in_registry(&self) -> Result<bool> {

@@ -5,6 +5,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::menu_ids::MenuId;
 use crate::menu_state::MenuState;
+use crate::switch::Switch;
 use crate::utf16::to_pcwstr;
 
 pub struct MenuTray {
@@ -26,6 +27,15 @@ impl MenuTray {
 
     pub fn is_initialized(&self) -> bool {
         self.menu.0 != -1
+    }
+
+    pub unsafe fn update_autorun_item(&self, is_enabled: bool) {
+        let autostart_tick = if is_enabled {
+            MF_CHECKED.0
+        } else {
+            MF_UNCHECKED.0
+        };
+        CheckMenuItem(self.menu, MenuId::AUTOSTART as u32, autostart_tick);
     }
 
     unsafe fn append_last_entries(&mut self, autostart: bool) {
@@ -186,7 +196,7 @@ impl MenuTray {
 
 fn append_menu(menu: HMENU, menu_state: &MenuState, entry_ids: &[MenuId]) {
     for e in entry_ids {
-        let bird = if menu_state.is_process_active(e) {
+        let bird = if menu_state.is_enabled(e) {
             MF_CHECKED
         } else {
             MF_UNCHECKED

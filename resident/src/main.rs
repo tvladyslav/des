@@ -27,6 +27,9 @@ use autostart::AutoStart;
 mod menu_entry;
 mod release;
 
+mod switch;
+use switch::Switch;
+
 mod config;
 use config::DEFAULT_PROCESS;
 
@@ -75,7 +78,7 @@ fn main() -> Result<()> {
         assert!(!cursor.is_invalid());
 
         for m in DEFAULT_PROCESS {
-            let res = MENU_STATE.start_process(m);
+            let res = MENU_STATE.enable(m);
             if let Err(e) = res {
                 let err: String = "Can't autorun default processes. ".to_string() + &e.to_string();
                 MessageBoxW(HWND(0), to_pcwstr(&err).1, w!("Error"), MB_OK | MB_ICONERROR);
@@ -165,27 +168,16 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-unsafe fn flip_menu_state(context_menu: HMENU, menu_item: MenuId) -> std::io::Result<()> {
-    let is_active = MENU_STATE.is_process_active(&menu_item);
+unsafe fn flip_menu_item<S>(state_keeper: &mut S, context_menu: HMENU, menu_item: MenuId) ->
+std::result::Result<(), <S as Switch>::ErrorType>
+where S: Switch {
+    let is_active = state_keeper.is_enabled(&menu_item);
 
     if is_active {
-        MENU_STATE.stop_process(&menu_item)?;
+        state_keeper.disable(&menu_item)?;
         CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED.0);
     } else {
-        MENU_STATE.start_process(&menu_item)?;
-        CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED.0);
-    }
-    Ok(())
-}
-
-unsafe fn flip_autorun(context_menu: HMENU, menu_item: MenuId) -> Result<()> {
-    let is_enabled = AUTOSTART.is_enabled();
-
-    if is_enabled {
-        AUTOSTART.disable()?;
-        CheckMenuItem(context_menu, menu_item as u32, MF_UNCHECKED.0);
-    } else {
-        AUTOSTART.enable()?;
+        state_keeper.enable(&menu_item)?;
         CheckMenuItem(context_menu, menu_item as u32, MF_CHECKED.0);
     }
     Ok(())
@@ -200,6 +192,14 @@ where T: std::fmt::Display {
         }
     }
     LRESULT_SUCCESS
+}
+
+unsafe fn get_menu_handle() -> HMENU {
+    if MENU_STATE.is_paused() {
+        *MENU_TRAY_PAUSED
+    } else {
+        *MENU_TRAY_ACTIVE
+    }
 }
 
 unsafe extern "system" fn wndproc(
@@ -217,11 +217,7 @@ unsafe extern "system" fn wndproc(
             WM_LBUTTONUP | WM_RBUTTONUP => {
                 let mut point: POINT = Default::default();
                 GetCursorPos(&mut point);
-                let menu_handle = if MENU_STATE.is_paused() {
-                    *MENU_TRAY_PAUSED
-                } else {
-                    *MENU_TRAY_ACTIVE
-                };
+                let menu_handle: HMENU = get_menu_handle();
                 handle_popup_menu(window, point, menu_handle);
                 LRESULT_SUCCESS
             }
@@ -231,15 +227,18 @@ unsafe extern "system" fn wndproc(
             let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap();
             match lo_wparam {
                 MenuId::PAUSE => {
+                    MENU_TRAY_PAUSED.update_autorun_item(AUTOSTART.is_enabled(&lo_wparam));
                     let res = MENU_STATE.pause();
                     notify_if_error(res, window, "Can't pause processes.")
                 }
                 MenuId::RESUME => {
+                    MENU_TRAY_ACTIVE.update_autorun_item(AUTOSTART.is_enabled(&lo_wparam));
                     let res = MENU_STATE.resume();
                     notify_if_error(res, window, "Can't resume processes.")
                 }
                 MenuId::AUTOSTART => {
-                    let res = flip_autorun(*MENU_TRAY_ACTIVE, lo_wparam);
+                    let menu_handle: HMENU = get_menu_handle();
+                    let res = flip_menu_item(&mut AUTOSTART, menu_handle, lo_wparam);
                     notify_if_error(res, window, "Error when accessing registry.")
                 }
                 MenuId::GUEST
@@ -300,7 +299,9 @@ unsafe extern "system" fn wndproc(
                 | MenuId::TOOLS_XN_RES_EDITOR
                 => {
                     // TODO: Is there a nice way to bind this variable?
-                    let res = flip_menu_state(*MENU_TRAY_ACTIVE, lo_wparam);
+                    let menu_handle = get_menu_handle();
+                    debug_assert!(menu_handle == *MENU_TRAY_ACTIVE, "Selected item is not available in paused menu.");
+                    let res = flip_menu_item(&mut MENU_STATE, menu_handle, lo_wparam);
                     notify_if_error(res, window, "Can't finish your request.")
                 }
                 MenuId::ABOUT => {

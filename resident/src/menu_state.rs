@@ -1,5 +1,6 @@
 use crate::menu_entry::*;
 use crate::menu_ids::MenuId;
+use crate::switch::Switch;
 
 use std::collections::BTreeMap;
 
@@ -7,6 +8,26 @@ pub struct MenuState<'a> {
     m: BTreeMap<MenuId, MenuEntry<'a>>,
     is_paused: bool,
     paused_process_list: Vec<MenuId>,
+}
+
+impl Switch for MenuState<'_> {
+    type ErrorType = std::io::Error;
+
+    fn enable(&mut self, id: &MenuId) -> std::io::Result<()> {
+        let menu_entry = self.m.get_mut(id).ok_or(std::io::ErrorKind::NotFound)?;
+        menu_entry.start_process()
+    }
+
+    fn disable(&mut self, id: &MenuId) -> std::io::Result<()> {
+        let menu_entry = self.m.get_mut(id).ok_or(std::io::ErrorKind::NotFound)?;
+        menu_entry.stop_process()
+    }
+
+    #[must_use]
+    fn is_enabled(&self, id: &MenuId) -> bool {
+        // TODO: remove unwrap
+        self.m.get(id).unwrap().is_process_active()
+    }
 }
 
 impl <'m> MenuState<'m> {
@@ -25,7 +46,7 @@ impl <'m> MenuState<'m> {
 
     fn stop_running_processes(&mut self, process_list: &Vec<MenuId>) -> std::io::Result<()> {
         for id in process_list {
-            self.stop_process(id)?;
+            self.disable(id)?;
         }
         Ok(())
     }
@@ -34,12 +55,6 @@ impl <'m> MenuState<'m> {
     pub fn get_name(&self, key: &MenuId) -> &'m str {
         // TODO: remove unwrap
         self.m.get(key).unwrap().get_name()
-    }
-
-    #[must_use]
-    pub fn is_process_active(&self, id: &MenuId) -> bool {
-        // TODO: remove unwrap
-        self.m.get(id).unwrap().is_process_active()
     }
 
     #[must_use]
@@ -67,22 +82,12 @@ impl <'m> MenuState<'m> {
         if self.is_paused {
             let process_to_resume = self.paused_process_list.clone();
             for id in &process_to_resume {
-                self.start_process(id)?;
+                self.enable(id)?;
             }
             self.paused_process_list.clear();
             self.is_paused = false;
         }
         Ok(())
-    }
-
-    pub fn start_process(&mut self, id: &MenuId) -> std::io::Result<()> {
-        let menu_entry = self.m.get_mut(id).ok_or(std::io::ErrorKind::NotFound)?;
-        menu_entry.start_process()
-    }
-
-    pub fn stop_process(&mut self, id: &MenuId) -> std::io::Result<()> {
-        let menu_entry = self.m.get_mut(id).ok_or(std::io::ErrorKind::NotFound)?;
-        menu_entry.stop_process()
     }
 
     pub fn destroy(&mut self) {
