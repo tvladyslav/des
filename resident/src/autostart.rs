@@ -68,7 +68,7 @@ impl AutoStart {
 
     pub fn init(&mut self) -> Result<bool> {
         simple_execute!(RegCreateKeyExW(
-            HKEY_CURRENT_USER,
+            crate::config::ROOT_KEY,
             STARTUP_SUBPATH,
             0,
             None,
