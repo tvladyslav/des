@@ -10,7 +10,7 @@ use windows::{
     Win32::Graphics::Gdi::ValidateRect,
     Win32::System::LibraryLoader::GetModuleHandleW,
     Win32::UI::Shell::{
-        Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW,
+        Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW, NOTIFY_ICON_MESSAGE, NIM_MODIFY,
     },
     Win32::UI::WindowsAndMessaging::*,
 };
@@ -43,7 +43,8 @@ mod menu_ids;
 use menu_ids::MenuId;
 
 mod menu_tray;
-use menu_tray::MenuTray;
+mod tray_menu_state;
+use tray_menu_state::TrayMenuState;
 
 #[macro_use]
 mod macros;
@@ -54,8 +55,7 @@ const TRAY_MESSAGE: u32 = WM_APP + 1;
 const LRESULT_SUCCESS: LRESULT = LRESULT(0);
 
 // ===== State of the application =====
-static mut MENU_TRAY_ACTIVE: MenuTray = MenuTray::new();
-static mut MENU_TRAY_PAUSED: MenuTray = MenuTray::new();
+static mut TRAY_MENU_STATE: TrayMenuState = TrayMenuState::new();
 static mut MENU_STATE: MenuState = MenuState::new();
 static mut AUTOSTART: AutoStart = AutoStart::new();
 
@@ -64,14 +64,16 @@ fn main() -> Result<()> {
     let module_handle: HINSTANCE;
     let icon: HICON;
     let cursor: HCURSOR;
-    let active_icon_res = PCWSTR(17 as *const u16);
+    let main_icon_res = PCWSTR(17 as *const u16);
+    let active_icon_res = PCWSTR(18 as *const u16);
+    let paused_icon_res = PCWSTR(19 as *const u16);
     unsafe {
         MENU_STATE.init_menu_entries();
 
         module_handle = GetModuleHandleW(None)?;
         assert!(!module_handle.is_invalid());
 
-        icon = LoadIconW(module_handle, active_icon_res)?;
+        icon = LoadIconW(module_handle, main_icon_res)?;
         assert!(!icon.is_invalid());
 
         cursor = LoadCursorW(None, IDC_ARROW)?;
@@ -87,8 +89,13 @@ fn main() -> Result<()> {
         }
 
         let autostart = AUTOSTART.init()?;
-        MENU_TRAY_ACTIVE.create_menu_active(&MENU_STATE, autostart)?;
-        MENU_TRAY_PAUSED.create_menu_paused(autostart)?;
+
+        let icon_active: HICON = LoadIconW(module_handle, active_icon_res)?;
+        assert!(!icon_active.is_invalid());
+        let icon_paused: HICON = LoadIconW(module_handle, paused_icon_res)?;
+        assert!(!icon_paused.is_invalid());
+
+        TRAY_MENU_STATE.init(&MENU_STATE, autostart, icon_active, icon_paused)?;
     }
 
     let class_name = w!("notify_icon_class");
@@ -127,6 +134,34 @@ fn main() -> Result<()> {
         None,
     ))?;
 
+    icon_helper(win_handle, NIM_ADD)?;
+
+    // unsafe {
+    //     ShowWindow(win_handle, SW_SHOW);
+    // }
+
+    let mut message = MSG::default();
+
+    unsafe {
+        while GetMessageW(&mut message, HWND::default(), 0, 0).into() {
+            // TranslateMessage(&mut message);
+            DispatchMessageW(&message);
+        }
+    }
+
+    let del_tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
+        hWnd: win_handle,
+        uID: TRAY_ICON_ID,
+        ..Default::default()
+    };
+    let is_tray_icon_deleted: BOOL = execute!(Shell_NotifyIconW(NIM_DELETE, &del_tray_data))?;
+    assert!(is_tray_icon_deleted.as_bool());
+
+    Ok(())
+}
+
+fn icon_helper(win_handle: HWND, message: NOTIFY_ICON_MESSAGE) -> Result<()> {
+    let icon: HICON = unsafe { TRAY_MENU_STATE.get_icon() };
     let mut tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: win_handle,
@@ -146,24 +181,8 @@ fn main() -> Result<()> {
         tray_data.szTip.clone_from_slice(&sz_tip);
     }
 
-    let is_added: BOOL = execute!(Shell_NotifyIconW(NIM_ADD, &tray_data))?;
-    assert!(is_added.as_bool());
-
-    // unsafe {
-    //     ShowWindow(win_handle, SW_SHOW);
-    // }
-
-    let mut message = MSG::default();
-
-    unsafe {
-        while GetMessageW(&mut message, HWND::default(), 0, 0).into() {
-            // TranslateMessage(&mut message);
-            DispatchMessageW(&message);
-        }
-    }
-
-    let is_tray_icon_deleted: BOOL = execute!(Shell_NotifyIconW(NIM_DELETE, &tray_data))?;
-    assert!(is_tray_icon_deleted.as_bool());
+    let result: BOOL = execute!(Shell_NotifyIconW(message, &tray_data))?;
+    assert!(result.as_bool());
 
     Ok(())
 }
@@ -183,7 +202,7 @@ where S: Switch {
     Ok(())
 }
 
-fn notify_if_error<T>(res: std::result::Result<(), T>, window: HWND, message: &str) -> LRESULT
+fn notify_if_error<T>(res: &std::result::Result<(), T>, window: HWND, message: &str) -> LRESULT
 where T: std::fmt::Display {
     if let Err(e) = res {
         let err: String = message.to_string() + " " + &e.to_string();
@@ -195,11 +214,7 @@ where T: std::fmt::Display {
 }
 
 unsafe fn get_menu_handle() -> HMENU {
-    if MENU_STATE.is_paused() {
-        *MENU_TRAY_PAUSED
-    } else {
-        *MENU_TRAY_ACTIVE
-    }
+    **TRAY_MENU_STATE
 }
 
 unsafe extern "system" fn wndproc(
@@ -227,19 +242,29 @@ unsafe extern "system" fn wndproc(
             let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap();
             match lo_wparam {
                 MenuId::PAUSE => {
-                    MENU_TRAY_PAUSED.update_autorun_item(AUTOSTART.is_enabled(&lo_wparam));
-                    let res = MENU_STATE.pause();
-                    notify_if_error(res, window, "Can't pause processes.")
+                    TRAY_MENU_STATE.pause(AUTOSTART.is_enabled(&lo_wparam));
+                    let res1 = icon_helper(window, NIM_MODIFY);    // After TRAY_MENU_STATE paused!
+                    notify_if_error(&res1, window, "Can't pause processes.");
+                    if res1.is_err() {
+                        return LRESULT_SUCCESS;
+                    }
+                    let res2 = MENU_STATE.pause();
+                    notify_if_error(&res2, window, "Can't pause processes.")
                 }
                 MenuId::RESUME => {
-                    MENU_TRAY_ACTIVE.update_autorun_item(AUTOSTART.is_enabled(&lo_wparam));
-                    let res = MENU_STATE.resume();
-                    notify_if_error(res, window, "Can't resume processes.")
+                    TRAY_MENU_STATE.resume(AUTOSTART.is_enabled(&lo_wparam));
+                    let res1 = icon_helper(window, NIM_MODIFY);    // After TRAY_MENU_STATE paused!
+                    notify_if_error(&res1, window, "Can't resume processes.");
+                    if res1.is_err() {
+                        return LRESULT_SUCCESS;
+                    }
+                    let res2 = MENU_STATE.resume();
+                    notify_if_error(&res2, window, "Can't resume processes.")
                 }
                 MenuId::AUTOSTART => {
                     let menu_handle: HMENU = get_menu_handle();
                     let res = flip_menu_item(&mut AUTOSTART, menu_handle, lo_wparam);
-                    notify_if_error(res, window, "Error when accessing registry.")
+                    notify_if_error(&res, window, "Error when accessing registry.")
                 }
                 MenuId::GUEST
                 | MenuId::DEBUGGER
@@ -300,9 +325,8 @@ unsafe extern "system" fn wndproc(
                 => {
                     // TODO: Is there a nice way to bind this variable?
                     let menu_handle = get_menu_handle();
-                    debug_assert!(menu_handle == *MENU_TRAY_ACTIVE, "Selected item is not available in paused menu.");
                     let res = flip_menu_item(&mut MENU_STATE, menu_handle, lo_wparam);
-                    notify_if_error(res, window, "Can't finish your request.")
+                    notify_if_error(&res, window, "Can't finish your request.")
                 }
                 MenuId::ABOUT => {
                     let text = w!(
@@ -337,8 +361,7 @@ unsafe extern "system" fn wndproc(
 
 unsafe fn exit_routine() -> LRESULT {
     // https://learn.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
-    MENU_TRAY_ACTIVE.destroy();
-    MENU_TRAY_PAUSED.destroy();
+    TRAY_MENU_STATE.destroy();
     MENU_STATE.destroy();
     AUTOSTART.destroy();
     PostQuitMessage(0); // This spawns WM_QUIT which terminates main loop
