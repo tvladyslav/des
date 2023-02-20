@@ -35,10 +35,6 @@ impl <'m> MenuState<'m> {
         MenuState { m: BTreeMap::new(), is_paused: false, paused_process_list: Vec::new() }
     }
 
-    pub fn is_paused(&self) -> bool {
-        self.is_paused
-    }
-
     fn stop_all_running_processes(&mut self) -> std::io::Result<()> {
         let active_process_list = self.get_active_process_list();
         self.stop_running_processes(&active_process_list)
