@@ -28,7 +28,7 @@ pub struct MenuEntry<'u> {
 
 impl <'u> MenuEntry<'u> {
     pub fn new(text: &'u str, process_list: Vec<(&'u str, Option<std::process::Child>)>) -> MenuEntry<'u> {
-        let home: String = std::env::var("TEMP").unwrap_or("C:/Temp".to_owned()) + "/";
+        let home: String = std::env::var("TEMP").unwrap_or("C:/Temp".to_owned()) + "/des/";
         MenuEntry { entry_text: text, processes: process_list, is_active: false, home_folder: home }
     }
 
@@ -37,11 +37,11 @@ impl <'u> MenuEntry<'u> {
             if process_child.is_none() {
                 let dir_path: String = self.home_folder.clone() + PROC_FOLDER;
                 let process_path: String = dir_path.clone() + process_name;
-                if Path::new(&process_path).exists() {
+                let try_exist = Path::new(&process_path).try_exists();
+                if let Ok(true) = try_exist {
                     verify_file_hash(&process_path)?;
                 } else {
-                    // TODO: try_exists when stabilized
-                    let res = fs::create_dir(&dir_path);
+                    let res = fs::create_dir_all(&dir_path);
                     if let Err(e) = &res {
                         if e.kind() != ErrorKind::AlreadyExists {
                             return res;
