@@ -2,7 +2,7 @@ use sha2::{Sha512, Digest};
 use std::io::ErrorKind;
 use std::{fs, io, process::Command, path::Path};
 
-use crate::release::{HOME_FOLDER, STUB_HASH, STUB_CONTENT};
+use crate::release::{STUB_HASH, STUB_CONTENT};
 use crate::config::KEEP_STUB_COPIES;
 
 const PROC_FOLDER: &str = "proc/";
@@ -23,17 +23,19 @@ pub struct MenuEntry<'u> {
     entry_text: &'u str,
     processes: Vec<(&'u str, Option<std::process::Child>)>,
     is_active: bool,
+    home_folder: String,
 }
 
 impl <'u> MenuEntry<'u> {
     pub fn new(text: &'u str, process_list: Vec<(&'u str, Option<std::process::Child>)>) -> MenuEntry<'u> {
-        MenuEntry { entry_text: text, processes: process_list, is_active: false }
+        let home: String = std::env::var("TEMP").unwrap_or("C:/Temp".to_owned()) + "/";
+        MenuEntry { entry_text: text, processes: process_list, is_active: false, home_folder: home }
     }
 
     pub fn start_process(&mut self) -> std::io::Result<()> {
         for (process_name, process_child) in &mut self.processes {
             if process_child.is_none() {
-                let dir_path: String = String::from(HOME_FOLDER) + PROC_FOLDER;
+                let dir_path: String = self.home_folder.clone() + PROC_FOLDER;
                 let process_path: String = dir_path.clone() + process_name;
                 if Path::new(&process_path).exists() {
                     verify_file_hash(&process_path)?;
@@ -61,7 +63,7 @@ impl <'u> MenuEntry<'u> {
                 proc.kill()?;
                 if !KEEP_STUB_COPIES {
                     proc.wait()?;
-                    let process_path: String = String::from(HOME_FOLDER) + PROC_FOLDER + process_name;
+                    let process_path: String = self.home_folder.clone() + PROC_FOLDER + process_name;
                     fs::remove_file(process_path)?;
                 }
                 *process_child = None

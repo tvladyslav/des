@@ -9,11 +9,7 @@ pub const STUB_HASH: &str = "C47E23101074B4B52ED6C8C2EBE97AE4A6812C62D4AF62282AC
 // Please edit version in main.rs!
 
 #[cfg(debug_assertions)]
-pub const HOME_FOLDER: &str = "./target/debug/";
-#[cfg(debug_assertions)]
 pub const STUB_CONTENT: &[u8; 165888] = std::include_bytes!("..\\..\\target\\debug\\des-stub.exe");
 
-#[cfg(not(debug_assertions))]
-pub const HOME_FOLDER: &str = "./";
 #[cfg(not(debug_assertions))]
 pub const STUB_CONTENT: &[u8; 165888] = std::include_bytes!("..\\..\\target\\release\\des-stub.exe");

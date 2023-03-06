@@ -330,7 +330,7 @@ unsafe extern "system" fn wndproc(
                 }
                 MenuId::ABOUT => {
                     let text = w!(
-                        "Version: 1.2.0\n \
+                        "Version: 1.2.1\n \
                         Author: Vladyslav Tsilytskyi\n \
                         Tray icon: Chenyu Wang\n \
                         License: GPLv3\n \
