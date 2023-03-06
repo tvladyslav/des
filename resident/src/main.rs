@@ -33,8 +33,8 @@ use switch::Switch;
 mod config;
 use config::DEFAULT_PROCESS;
 
-mod utf16;
-use utf16::to_pcwstr;
+mod convert;
+use convert::{to_pcwstr, to_win_error};
 
 mod menu_state;
 use menu_state::MenuState;
@@ -239,27 +239,25 @@ unsafe extern "system" fn wndproc(
             _ => DefWindowProcW(window, message, wparam, lparam),
         },
         WM_COMMAND => {
-            let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap();
+            let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap_or(MenuId::ERROR);
             match lo_wparam {
                 MenuId::PAUSE => {
-                    TRAY_MENU_STATE.pause(AUTOSTART.is_enabled(&lo_wparam));
-                    let res1 = icon_helper(window, NIM_MODIFY);    // After TRAY_MENU_STATE paused!
-                    notify_if_error(&res1, window, "Can't pause processes.");
-                    if res1.is_err() {
-                        return LRESULT_SUCCESS;
-                    }
-                    let res2 = MENU_STATE.pause();
-                    notify_if_error(&res2, window, "Can't pause processes.")
+                    TRAY_MENU_STATE.pause(AUTOSTART.is_enabled(&lo_wparam)); // Must go first
+                    let res = MENU_STATE.pause()
+                        .map_err(to_win_error)
+                        .and_then(
+                            |_| icon_helper(window, NIM_MODIFY)
+                        );
+                    notify_if_error(&res, window, "Can't pause processes.")
                 }
                 MenuId::RESUME => {
-                    TRAY_MENU_STATE.resume(AUTOSTART.is_enabled(&lo_wparam));
-                    let res1 = icon_helper(window, NIM_MODIFY);    // After TRAY_MENU_STATE paused!
-                    notify_if_error(&res1, window, "Can't resume processes.");
-                    if res1.is_err() {
-                        return LRESULT_SUCCESS;
-                    }
-                    let res2 = MENU_STATE.resume();
-                    notify_if_error(&res2, window, "Can't resume processes.")
+                    TRAY_MENU_STATE.resume(AUTOSTART.is_enabled(&lo_wparam)); // Must go first
+                    let res = MENU_STATE.resume()
+                        .map_err(to_win_error)
+                        .and_then(
+                            |_| icon_helper(window, NIM_MODIFY)
+                        );
+                    notify_if_error(&res, window, "Can't resume processes.")
                 }
                 MenuId::AUTOSTART => {
                     let menu_handle: HMENU = get_menu_handle();
@@ -342,6 +340,10 @@ unsafe extern "system" fn wndproc(
                 }
                 MenuId::EXIT => {
                     SendMessageW(window, WM_CLOSE, WPARAM(0), LPARAM(0));
+                    LRESULT_SUCCESS
+                }
+                MenuId::ERROR => {
+                    MessageBoxW(window, w!("Can't parse menu item. Please report to the developer."), w!("Error"), MB_ICONERROR);
                     LRESULT_SUCCESS
                 }
             }

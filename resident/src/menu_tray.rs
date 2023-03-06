@@ -6,7 +6,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use crate::menu_ids::MenuId;
 use crate::menu_state::MenuState;
 use crate::switch::Switch;
-use crate::utf16::to_pcwstr;
+use crate::convert::to_pcwstr;
 
 pub struct MenuTray {
     menu: HMENU

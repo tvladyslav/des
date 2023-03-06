@@ -25,8 +25,13 @@ impl Switch for MenuState<'_> {
 
     #[must_use]
     fn is_enabled(&self, id: &MenuId) -> bool {
-        // TODO: remove unwrap
-        self.m.get(id).unwrap().is_process_active()
+        match self.m.get(id) {
+            Some(v) => v.is_process_active(),
+            None => {
+                // log the error
+                panic!("Key {0} doesn't exist in the map.", *id as u32)
+            },
+        }
     }
 }
 
@@ -49,8 +54,13 @@ impl <'m> MenuState<'m> {
 
     #[must_use]
     pub fn get_name(&self, key: &MenuId) -> &'m str {
-        // TODO: remove unwrap
-        self.m.get(key).unwrap().get_name()
+        match self.m.get(key) {
+            Some(v) => v.get_name(),
+            None => {
+                // log the error
+                panic!("Key {0} doesn't exist in the map.", *key as u32)
+            },
+        }
     }
 
     #[must_use]

@@ -9,6 +9,7 @@ use windows:: {
         Foundation::{
             ERROR_SUCCESS,
             ERROR_FILE_NOT_FOUND,
+            ERROR_BAD_PATHNAME,
         },
     },
 };
@@ -16,7 +17,7 @@ use windows:: {
 use core::ffi::c_void;
 
 use crate::{
-    utf16::to_utf16,
+    convert::{to_utf16, to_win_error},
     menu_ids::MenuId,
     simple_execute,
     switch::Switch,
@@ -33,8 +34,9 @@ pub struct AutoStart {
 impl Switch for AutoStart {
     type ErrorType = windows::core::Error;
     fn enable(&mut self, _id: &MenuId) -> windows::core::Result<()> {
-        let path = std::env::current_exe().unwrap();    // TODO: no unwraps!
-        let path_vec = to_utf16(path.to_str().unwrap());
+        let path = std::env::current_exe().map_err(to_win_error)?;
+        let path_str: &str = path.to_str().ok_or(windows::core::Error::from(ERROR_BAD_PATHNAME))?;
+        let path_vec = to_utf16(path_str);
         simple_execute!(RegSetValueExW(
             self.handle,
             VALUE_NAME,
@@ -112,8 +114,9 @@ impl AutoStart {
 
         pcbdata /= 2;   // Bytes to u16
 
-        let path = std::env::current_exe().unwrap();    // TODO: no unwraps!
-        let path_vec = to_utf16(path.to_str().unwrap());
+        let path = std::env::current_exe().map_err(to_win_error)?;
+        let path_str: &str = path.to_str().ok_or(windows::core::Error::from(ERROR_BAD_PATHNAME))?;
+        let path_vec = to_utf16(path_str);
 
         unsafe { pvdata.set_len(pcbdata as usize); }
         let ret = reg_val_type == REG_SZ

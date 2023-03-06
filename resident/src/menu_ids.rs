@@ -68,4 +68,6 @@ pub enum MenuId {
     EXIT,
     PAUSE,
     RESUME,
+
+    ERROR,
 }
