@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use windows::{Win32::System::Registry::{HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}};
+use cfg_if;
 
 use crate::MenuId::*;
 
@@ -18,8 +19,15 @@ pub const DEFAULT_PROCESS: &[crate::MenuId] = &[
     TOOLS_SPYXX,
 ];
 
-#[cfg(feature = "user_current")]
-pub const ROOT_KEY: HKEY = HKEY_CURRENT_USER;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "user_current")] {
+        pub const ROOT_KEY: HKEY = HKEY_CURRENT_USER;
+    } else if #[cfg(feature = "user_all")] {
+        pub const ROOT_KEY: HKEY = HKEY_LOCAL_MACHINE;
+    } else {
+        pub const ROOT_KEY: HKEY = HKEY_CURRENT_USER;
+    }
+}
 
-#[cfg(feature = "user_all")]
-pub const ROOT_KEY: HKEY = HKEY_LOCAL_MACHINE;
+
+
