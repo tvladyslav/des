@@ -15,6 +15,19 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
+use cfg_if;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "logger")] {
+        #[macro_use]
+        extern crate log;
+        extern crate simplelog;
+
+        use simplelog::*;
+
+        use std::fs::File;
+    }
+}
+
 extern crate sha2;
 
 #[macro_use]
@@ -58,6 +71,7 @@ const LRESULT_SUCCESS: LRESULT = LRESULT(0);
 static mut TRAY_MENU_STATE: TrayMenuState = TrayMenuState::new();
 static mut MENU_STATE: MenuState = MenuState::new();
 static mut AUTOSTART: AutoStart = AutoStart::new();
+static mut HOME_FOLDER: String = String::new();
 
 #[cfg(windows)]
 fn main() -> Result<()> {
@@ -68,10 +82,18 @@ fn main() -> Result<()> {
     let active_icon_res = PCWSTR(18 as *const u16);
     let paused_icon_res = PCWSTR(19 as *const u16);
     unsafe {
+        HOME_FOLDER = std::env::var("TEMP").unwrap_or("C:/Temp".to_owned()) + "/des/";
+
+        #[cfg(feature = "logger")]
+        let _ = WriteLogger::init(LevelFilter::Debug, Config::default(), File::create(HOME_FOLDER.clone() + "log.txt").unwrap());
+        #[cfg(feature = "logger")] debug!("App started. Home folder is {0}", HOME_FOLDER);
+
         MENU_STATE.init_menu_entries();
+        #[cfg(feature = "logger")] debug!("Menu entries initialized.");
 
         module_handle = GetModuleHandleW(None)?;
         assert!(!module_handle.is_invalid());
+        #[cfg(feature = "logger")] debug!("Got module handle.");
 
         icon = LoadIconW(module_handle, main_icon_res)?;
         assert!(!icon.is_invalid());
@@ -87,8 +109,10 @@ fn main() -> Result<()> {
                 break;
             }
         }
+        #[cfg(feature = "logger")] debug!("Started default processes.");
 
         let autostart = AUTOSTART.init()?;
+        #[cfg(feature = "logger")] debug!("Autostart feature initialized.");
 
         let icon_active: HICON = LoadIconW(module_handle, active_icon_res)?;
         assert!(!icon_active.is_invalid());
@@ -96,6 +120,7 @@ fn main() -> Result<()> {
         assert!(!icon_paused.is_invalid());
 
         TRAY_MENU_STATE.init(&MENU_STATE, autostart, icon_active, icon_paused)?;
+        #[cfg(feature = "logger")] debug!("Tray menu initialized.");
     }
 
     let class_name = w!("notify_icon_class");
@@ -118,6 +143,7 @@ fn main() -> Result<()> {
 
     let atom: u16 = execute!(RegisterClassExW(&win_class))?;
     assert!(atom != 0);
+    #[cfg(feature = "logger")] debug!("Win class initialized.");
 
     let win_handle: HWND = execute!(CreateWindowExW(
         Default::default(),
@@ -134,7 +160,11 @@ fn main() -> Result<()> {
         None,
     ))?;
 
+    #[cfg(feature = "logger")] debug!("Window created.");
+
     icon_helper(win_handle, NIM_ADD)?;
+
+    #[cfg(feature = "logger")] debug!("Tray icon added.");
 
     // unsafe {
     //     ShowWindow(win_handle, SW_SHOW);
@@ -148,6 +178,8 @@ fn main() -> Result<()> {
             DispatchMessageW(&message);
         }
     }
+
+    #[cfg(feature = "logger")] debug!("Exit routine.");
 
     let del_tray_data: NOTIFYICONDATAW = NOTIFYICONDATAW {
         hWnd: win_handle,
@@ -230,6 +262,7 @@ unsafe extern "system" fn wndproc(
             //     0
             // }
             WM_LBUTTONUP | WM_RBUTTONUP => {
+                #[cfg(feature = "logger")] debug!("TRAY_MESSAGE command {0} {1}", LOWORD!(wparam), LOWORD!(lparam));
                 let mut point: POINT = Default::default();
                 GetCursorPos(&mut point);
                 let menu_handle: HMENU = get_menu_handle();
@@ -239,6 +272,7 @@ unsafe extern "system" fn wndproc(
             _ => DefWindowProcW(window, message, wparam, lparam),
         },
         WM_COMMAND => {
+            #[cfg(feature = "logger")] debug!("WM_COMMAND command {0} {1}", LOWORD!(wparam), LOWORD!(lparam));
             let lo_wparam: MenuId = FromPrimitive::from_u32(LOWORD!(wparam)).unwrap_or(MenuId::ERROR);
             match lo_wparam {
                 MenuId::PAUSE => {
@@ -349,11 +383,16 @@ unsafe extern "system" fn wndproc(
             }
         }
         WM_PAINT => {
+            #[cfg(feature = "logger")] debug!("WM_PAINT command {0} {1}", LOWORD!(wparam), LOWORD!(lparam));
             ValidateRect(window, None);
             LRESULT_SUCCESS
         }
-        WM_CREATE => LRESULT_SUCCESS,
+        WM_CREATE => {
+            #[cfg(feature = "logger")] debug!("WM_CREATE command {0} {1}", LOWORD!(wparam), LOWORD!(lparam));
+            LRESULT_SUCCESS
+        },
         WM_DESTROY => {
+            #[cfg(feature = "logger")] debug!("WM_DESTROY command {0} {1}", LOWORD!(wparam), LOWORD!(lparam));
             // We are in a process of destruction
             exit_routine()
         }
@@ -366,6 +405,7 @@ unsafe fn exit_routine() -> LRESULT {
     TRAY_MENU_STATE.destroy();
     MENU_STATE.destroy();
     AUTOSTART.destroy();
+    HOME_FOLDER.clear();
     PostQuitMessage(0); // This spawns WM_QUIT which terminates main loop
     LRESULT_SUCCESS
 }

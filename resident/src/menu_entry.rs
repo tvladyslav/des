@@ -23,25 +23,24 @@ pub struct MenuEntry<'u> {
     entry_text: &'u str,
     processes: Vec<(&'u str, Option<std::process::Child>)>,
     is_active: bool,
-    home_folder: String,
+    proc_folder: String,
 }
 
 impl <'u> MenuEntry<'u> {
     pub fn new(text: &'u str, process_list: Vec<(&'u str, Option<std::process::Child>)>) -> MenuEntry<'u> {
-        let home: String = std::env::var("TEMP").unwrap_or("C:/Temp".to_owned()) + "/des/";
-        MenuEntry { entry_text: text, processes: process_list, is_active: false, home_folder: home }
+        let home_folder: String = unsafe { crate::HOME_FOLDER.clone() };
+        MenuEntry { entry_text: text, processes: process_list, is_active: false, proc_folder: home_folder + PROC_FOLDER }
     }
 
     pub fn start_process(&mut self) -> std::io::Result<()> {
         for (process_name, process_child) in &mut self.processes {
             if process_child.is_none() {
-                let dir_path: String = self.home_folder.clone() + PROC_FOLDER;
-                let process_path: String = dir_path.clone() + process_name;
+                let process_path: String = self.proc_folder.clone() + process_name;
                 let try_exist = Path::new(&process_path).try_exists();
                 if let Ok(true) = try_exist {
                     verify_file_hash(&process_path)?;
                 } else {
-                    let res = fs::create_dir_all(&dir_path);
+                    let res = fs::create_dir_all(&self.proc_folder);
                     if let Err(e) = &res {
                         if e.kind() != ErrorKind::AlreadyExists {
                             return res;
@@ -63,7 +62,7 @@ impl <'u> MenuEntry<'u> {
                 proc.kill()?;
                 if !KEEP_STUB_COPIES {
                     proc.wait()?;
-                    let process_path: String = self.home_folder.clone() + PROC_FOLDER + process_name;
+                    let process_path: String = self.proc_folder.clone() + process_name;
                     fs::remove_file(process_path)?;
                 }
                 *process_child = None
