@@ -9,8 +9,6 @@ license = "GPL v3"
 build = "build.rs"
 
 [features]
-user_current = []
-user_all = []
 logger = ["log", "simplelog"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

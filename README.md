@@ -24,7 +24,7 @@ Get-FileHash -Algorithm SHA512 -LiteralPath target\release\des-stub.exe | Select
 # manually update the variable STUB_HASH in release.rs !!!
 
 # compile resident app
-cargo build --features user_current --bin des-resident --release
+cargo build --features "logger" --bin des-resident --release
 ```
 
 ## License

@@ -69,8 +69,8 @@ impl AutoStart {
     }
 
     pub fn init(&mut self) -> Result<bool> {
-        simple_execute!(RegCreateKeyExW(
-            crate::config::ROOT_KEY,
+        let mut res = unsafe {RegCreateKeyExW(
+            HKEY_LOCAL_MACHINE,
             STARTUP_SUBPATH,
             0,
             None,
@@ -79,7 +79,23 @@ impl AutoStart {
             None,
             &mut self.handle,
             None    // Not interested in this value
-        ));
+        )};
+        if res != ERROR_SUCCESS {
+            res = unsafe {RegCreateKeyExW(
+                HKEY_CURRENT_USER,
+                STARTUP_SUBPATH,
+                0,
+                None,
+                REG_OPTION_NON_VOLATILE,
+                KEY_QUERY_VALUE | KEY_SET_VALUE,
+                None,
+                &mut self.handle,
+                None    // Not interested in this value
+            )};
+            if res != ERROR_SUCCESS {
+                return Err(res.into());
+            }
+        }
         self.is_enabled = self.is_enabled_in_registry()?;
         Ok(self.is_enabled)
     }
