@@ -13,6 +13,8 @@ pub fn to_pcwstr(text: &str) -> (Vec<u16>, windows::core::PCWSTR) {
     (v0, v1)
 }
 
+// One should avoid this function and use opposite direction.
+// windows::core::Error => std::io::Error is profided by windows crate.
 pub fn to_win_error(error: std::io::Error) -> windows::core::Error {
     let r1 = match error.kind() {
         ErrorKind::NotFound => ERROR_FILE_NOT_FOUND,

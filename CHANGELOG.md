@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+* Add logger as a compile-time feature
+* Use runtime check for user privileges
+
+---
+
 ## 1.2.1
 
 * Move `proc/` into temporary folder; this solves "Access denied" problem when running from autostart.

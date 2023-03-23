@@ -47,7 +47,7 @@ mod config;
 use config::DEFAULT_PROCESS;
 
 mod convert;
-use convert::{to_pcwstr, to_win_error};
+use convert::to_pcwstr;
 
 mod menu_state;
 use menu_state::MenuState;
@@ -277,19 +277,19 @@ unsafe extern "system" fn wndproc(
             match lo_wparam {
                 MenuId::PAUSE => {
                     TRAY_MENU_STATE.pause(AUTOSTART.is_enabled(&lo_wparam)); // Must go first
-                    let res = MENU_STATE.pause()
-                        .map_err(to_win_error)
+                    let res = icon_helper(window, NIM_MODIFY)
+                        .map_err(windows::core::Error::into)
                         .and_then(
-                            |_| icon_helper(window, NIM_MODIFY)
+                            |_| MENU_STATE.pause()
                         );
                     notify_if_error(&res, window, "Can't pause processes.")
                 }
                 MenuId::RESUME => {
                     TRAY_MENU_STATE.resume(AUTOSTART.is_enabled(&lo_wparam)); // Must go first
-                    let res = MENU_STATE.resume()
-                        .map_err(to_win_error)
+                    let res = icon_helper(window, NIM_MODIFY)
+                        .map_err(windows::core::Error::into)
                         .and_then(
-                            |_| icon_helper(window, NIM_MODIFY)
+                            |_| MENU_STATE.resume()
                         );
                     notify_if_error(&res, window, "Can't resume processes.")
                 }
@@ -362,7 +362,7 @@ unsafe extern "system" fn wndproc(
                 }
                 MenuId::ABOUT => {
                     let text = w!(
-                        "Version: 1.2.1\n \
+                        "Version: 1.3.0\n \
                         Author: Vladyslav Tsilytskyi\n \
                         Tray icon: Chenyu Wang\n \
                         License: GPLv3\n \
